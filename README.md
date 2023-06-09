@@ -29,7 +29,7 @@
 
 Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6Y-btreBtyVZ-kdGTIZgLTjsv7H4Pd?usp=sharing).
 
-1. Download the cifar-10 dataset to ./data for calculating the FID.
+1. Download the cifar-10 dataset to ./data
     
     ~~~
     mkdir data
