@@ -53,8 +53,8 @@ class MMD_loss(nn.Module):
         YY_l = torch.exp(-alpha*torch.max(L2_YY,bl))
         XX = (1/(m*(m-1))) * (torch.sum(XX_u) - torch.sum(torch.diagonal(XX_u, 0)))
         YY = (1/(m*(m-1))) * (torch.sum(YY_l) - torch.sum(torch.diagonal(YY_l, 0)))
-        # loss_b = torch.mean(source.square()) + torch.mean(target.square())
-        lossD = XX - YY # + 0.0001*loss_b
+        loss_b = torch.mean(source.square()) + torch.mean(target.square())
+        lossD = XX - YY + 0.001*loss_b
         # print(XX, YY, loss_b)
         return lossD
       elif type == "gen":
