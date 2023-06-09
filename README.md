@@ -41,3 +41,16 @@ Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6
     mkdir tmp
     ~~~
    
+
+### Testing
+1. Download the trained generative models ([Google Drive](https://drive.google.com/drive/folders/17Kqc5aImZ2vHJ1SH1HkrHjlk0MZeuM6q?usp=sharing) to ./exps/arch_train_cifar10/Model
+
+    ~~~
+    mkdir -p exps/arch_train_cifar10/Model
+    ~~~
+   
+2. To test the trained model run the command found in scripts/test_arch_cifar10.sh
+    ~~~
+    python MGPU_test_arch.py --gpu_ids 0 --num_workers 8 --dataset cifar10 --bottom_width 4 --img_size 32 --arch arch_cifar10 --draw_arch False --checkpoint arch_train_cifar10_MMD_TrainfromMMD_LargeDisc --genotypes_exp arch_cifar10 --latent_dim 120 --gf_dim 256 --df_dim 512 --num_eval_imgs 50000 --eval_batch_size 100 --exp_name arch_test_cifar10
+    ~~~
+
