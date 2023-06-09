@@ -47,7 +47,7 @@ Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6
     mkdir tmp
     ~~~
 
-## Train and Test the Searched Architecture.
+## Instructions for Testing, Training, and Searching the Model.
 ### Testing
 1. Download the trained generative models [Google Drive](https://drive.google.com/drive/folders/1xB6Y-btreBtyVZ-kdGTIZgLTjsv7H4Pd?usp=sharing) to ./exps/arch_train_cifar10/Model
 
