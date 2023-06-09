@@ -28,7 +28,13 @@
 ### Preparing necessary files
 
 Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6Y-btreBtyVZ-kdGTIZgLTjsv7H4Pd?usp=sharing).
-   
+
+1. Download the cifar-10 dataset to ./data for calculating the FID.
+    
+    ~~~
+    mkdir data
+    ~~~
+    
 2. Download the pre-calculated statistics to ./fid_stat for calculating the FID.
     
     ~~~
