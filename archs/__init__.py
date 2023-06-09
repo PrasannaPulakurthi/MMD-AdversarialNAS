@@ -1,0 +1,5 @@
+
+import archs.arch_cifar10
+import archs.arch_cifar10_building_blocks
+import archs.search_both_cifar10
+import archs.search_both_cifar10_building_blocks
