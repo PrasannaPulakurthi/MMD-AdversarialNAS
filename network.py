@@ -210,7 +210,7 @@ def validate(args, fixed_z, fid_stat, gen_net: nn.Module, writer_dict):
             imsave(file_name, img)
         img_list.extend(list(gen_imgs))
     Z = np.concatenate(Z, 0)
-    scipy.io.savemat('test_noise.mat', {'Noise': Z})
+    # scipy.io.savemat('test_noise.mat', {'Noise': Z})
 
     # get inception score
     logger.info('=> calculate inception score')
