@@ -43,7 +43,7 @@ Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6
    
 
 ### Testing
-1. Download the trained generative models [Google Drive](https://drive.google.com/drive/folders/17Kqc5aImZ2vHJ1SH1HkrHjlk0MZeuM6q?usp=sharing) to ./exps/arch_train_cifar10/Model
+1. Download the trained generative models [Google Drive](https://drive.google.com/drive/folders/1xB6Y-btreBtyVZ-kdGTIZgLTjsv7H4Pd?usp=sharing) to ./exps/arch_train_cifar10/Model
 
     ~~~
     mkdir -p exps/arch_train_cifar10/Model
