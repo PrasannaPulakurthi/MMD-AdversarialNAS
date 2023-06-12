@@ -67,13 +67,13 @@ class Conv(nn.Module):
     def __init__(self, in_ch, out_ch, kernel_size, stride, padding, sn, act):
         super(Conv, self).__init__()
         if sn:
-            self.conv = nn.utils.spectral_norm(nn.Conv2d(in_ch, out_ch, kernel_size, stride=stride, padding=padding))
+            conv = nn.utils.spectral_norm(nn.Conv2d(in_ch, out_ch, kernel_size, stride=stride, padding=padding))
         else:
-            self.conv = nn.Conv2d(in_ch, out_ch, kernel_size, stride=stride, padding=padding)
+            conv = nn.Conv2d(in_ch, out_ch, kernel_size, stride=stride, padding=padding)
         if act:
-            self.op = nn.Sequential(nn.ReLU(), self.conv)
+            self.op = nn.Sequential(nn.ReLU(), conv)
         else:
-            self.op = nn.Sequential(self.conv)
+            self.op = nn.Sequential(conv)
             
     def forward(self, x):
         return self.op(x)
@@ -83,15 +83,15 @@ class DilConv(nn.Module):
     def __init__(self, in_ch, out_ch, kernel_size, stride, padding, dilation, sn, act):
         super(DilConv, self).__init__()
         if sn:
-            self.dilconv = nn.utils.spectral_norm(
+            dilconv = nn.utils.spectral_norm(
               nn.Conv2d(in_ch, out_ch, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation))
         else:
-            self.dilconv = \
+            dilconv = \
                 nn.Conv2d(in_ch, out_ch, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation)
         if act:
-            self.op = nn.Sequential(nn.ReLU(), self.dilconv)
+            self.op = nn.Sequential(nn.ReLU(), dilconv)
         else:
-            self.op = nn.Sequential(self.dilconv)
+            self.op = nn.Sequential(dilconv)
 
     def forward(self, x):
         return self.op(x)
