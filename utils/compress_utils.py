@@ -90,7 +90,14 @@ def get_ranks_per_layer(model, ratio, layers):
 
 
 def plot_performance(performance_dict, dir_):
+    if 'e' in performance_dict.keys():
+        x_ax = performance_dict['e']
+    else:
+        x_ax = np.range(len(performance_dict['fid']))
+        
     for name, performance in performance_dict.items():
+        if name == 'e':
+            continue
         f=plt.figure()
         plt.plot(performance, '-o', label=name)
         plt.plot([0, len(performance)-1],[performance[0], performance[0]], '--k', label='initial', alpha=0.5 )
@@ -98,3 +105,4 @@ def plot_performance(performance_dict, dir_):
         plt.xlabel('step')
         plt.ylabel(name)
         plt.savefig(os.path.join(dir_, name+'.png'))
+        plt.close(f)

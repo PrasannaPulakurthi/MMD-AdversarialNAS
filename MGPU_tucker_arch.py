@@ -235,8 +235,8 @@ def main():
         #gm
         # print(len(gen_avg_param),len(list(gen_net.parameters())))
         #print([n for n, p in gen_net.named_parameters()])
-
-        new_layers, approx_error, layer_compress_ratio, decomp_rank = decompose_and_replace_conv_layer_by_name(gen_net.module, layer_name, rank=rank, freeze=False, device=args.gpu_ids[0])
+        
+        new_layers, approx_error, layer_compress_ratio, decomp_rank = decompose_and_replace_conv_layer_by_name(gen_net.module, layer_name, rank=rank, freeze=False, device=args.gpu_ids[0], decomposition='tucker')
         #for name, param in new_layers.named_parameters():
         #    print(name)
         #for i,(n, p) in enumerate(gen_net.named_parameters()):
