@@ -20,6 +20,7 @@ def print_FLOPs(model, shape, logger):
 
   logger.info('FLOPs : {:} MB'.format(FLOPs))
   torch.cuda.empty_cache()
+  return FLOPs
 
 
 # ---- Public functions

@@ -56,6 +56,8 @@ parser.add_argument('--beta2', type=float, default=0.9, help='decay of first ord
 parser.add_argument('--init_type', type=str, default='normal',
                     choices=['normal', 'orth', 'xavier_uniform', 'false'],
                     help='init type')
+parser.add_argument('--bu', type=int, default=128, help='loss upper bound') # set bl to 1/bu
+
 parser.add_argument('--d_spectral_norm', type=str2bool, default=True,
                     help='add spectral_norm on discriminator or not')
 parser.add_argument('--g_spectral_norm', type=str2bool, default=False,
@@ -78,6 +80,7 @@ parser.add_argument('--amending_coefficient', type=float, default=0, help='coeff
 parser.add_argument('--draw_arch', type=str2bool, default=False, help='visualize the searched architecture or not')
 parser.add_argument('--early_stop', type=str2bool, default=False, help='use early stop strategy or not')
 
+# compression
 parser.add_argument('--ft-epochs', type=int, default=10)
 
 parser.add_argument('--layers', nargs='+', type=str)

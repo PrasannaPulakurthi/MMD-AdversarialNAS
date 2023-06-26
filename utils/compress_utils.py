@@ -48,6 +48,11 @@ def set_root_dir(root_dir, exp_name):
     os.makedirs(sample_path)
     path_dict['sample_path'] = sample_path
 
+    # set checkpoint path
+    ckpt_path = os.path.join(prefix, 'Model')
+    os.makedirs(ckpt_path)
+    path_dict['ckpt_path'] = ckpt_path
+
     return path_dict
     
 

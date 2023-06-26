@@ -22,11 +22,11 @@ logger = logging.getLogger(__name__)
 
 
 class MMD_loss(nn.Module):
-    def __init__(self):
+    def __init__(self, bu=128, bl=1/128):
       super(MMD_loss, self).__init__()
       self.fix_sigma = 1
-      self.bl = 1/128
-      self.bu = 128
+      self.bl = bl
+      self.bu = bu
       return
   
     def phi(self,x,y):
@@ -54,7 +54,7 @@ class MMD_loss(nn.Module):
         XX = (1/(m*(m-1))) * (torch.sum(XX_u) - torch.sum(torch.diagonal(XX_u, 0)))
         YY = (1/(m*(m-1))) * (torch.sum(YY_l) - torch.sum(torch.diagonal(YY_l, 0)))
         loss_b = torch.mean(source.square()) + torch.mean(target.square())
-        lossD = XX - YY + 0.001*loss_b
+        lossD = XX - YY #+ 0.001*loss_b
         # print(XX, YY, loss_b)
         return lossD
       elif type == "gen":
@@ -71,11 +71,11 @@ class MMD_loss(nn.Module):
         return lossmmd
       
 def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optimizer, gen_avg_param, train_loader, epoch,
-          writer_dict, lr_schedulers, architect_gen=None, architect_dis=None):
+          writer_dict, lr_schedulers, architect_gen=None, architect_dis=None, bu=128, bl=1/128):
     writer = writer_dict['writer']
     gen_step = 0
 
-    mmd_rep_loss = MMD_loss()
+    mmd_rep_loss = MMD_loss(bu, bl)
     # train mode
     gen_net = gen_net.train()
     dis_net = dis_net.train()
@@ -164,6 +164,99 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
             tqdm.write(
                 '[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]' %
                 (epoch, args.max_epoch_D, iter_idx % len(train_loader), len(train_loader), d_loss.item(), g_loss.item()))
+
+        writer_dict['train_global_steps'] = global_steps + 1
+
+        if architect_gen:
+            # deriving arch of G/D during searching
+            derive_freq_iter = math.floor((args.max_iter_D / args.max_epoch_D) / args.derive_per_epoch)
+            if (args.derive_per_epoch > 0) and (iter_idx % derive_freq_iter == 0):
+                genotype_G = alpha2genotype(gen_net.module.alphas_normal, gen_net.module.alphas_up, save=True,
+                                            file_path=os.path.join(args.path_helper['genotypes_path'], str(epoch)+'_'+str(iter_idx)+'_G.npy'))
+                genotype_D = beta2genotype(dis_net.module.alphas_normal, dis_net.module.alphas_down, save=True,
+                                           file_path=os.path.join(args.path_helper['genotypes_path'], str(epoch)+'_'+str(iter_idx)+'_D.npy'))
+                if args.draw_arch:
+                    draw_graph_G(genotype_G, save=True,
+                                 file_path=os.path.join(args.path_helper['graph_vis_path'], str(epoch)+'_'+str(iter_idx)+'_G'))
+                    draw_graph_D(genotype_D, save=True,
+                                 file_path=os.path.join(args.path_helper['graph_vis_path'], str(epoch)+'_'+str(iter_idx)+'_D'))
+
+def train_gen(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optimizer, gen_avg_param, train_loader, epoch,
+          writer_dict, lr_schedulers, architect_gen=None, architect_dis=None):
+    writer = writer_dict['writer']
+    gen_step = 0
+
+    mmd_rep_loss = MMD_loss()
+    # train mode
+    gen_net = gen_net.train()
+    dis_net = dis_net.eval()
+
+    for iter_idx, (imgs, _) in enumerate(tqdm(train_loader)):
+        global_steps = writer_dict['train_global_steps']
+
+        real_imgs = imgs.type(torch.cuda.FloatTensor)
+        real_imgs_w = real_imgs[:imgs.shape[0] // 2]
+        real_imgs_arch = real_imgs[imgs.shape[0] // 2:]
+
+        # sample noise
+        z = torch.cuda.FloatTensor(np.random.normal(0, 1, (imgs.shape[0] // 2, args.latent_dim)))
+
+        # train weights of D
+        #dis_optimizer.zero_grad()
+        #real_validity = dis_net(real_imgs_w)
+        #fake_imgs = gen_net(z).detach()
+        #assert fake_imgs.size() == real_imgs_w.size()
+        #fake_validity = dis_net(fake_imgs)
+        # print(real_validity.size(), fake_validity.size())
+        #d_loss = mmd_rep_loss(real_validity, fake_validity,"critic")
+        '''
+        # Hinge loss
+        d_loss = torch.mean(nn.ReLU(inplace=True)(1.0 - real_validity)) + \
+                 torch.mean(nn.ReLU(inplace=True)(1 + fake_validity))
+        '''
+        #d_loss.backward()
+        #dis_optimizer.step()
+
+        #writer.add_scalar('d_loss', d_loss.item(), global_steps)
+
+        # sample noise
+        gen_z = torch.cuda.FloatTensor(np.random.normal(0, 1, (args.gen_bs, args.latent_dim)))
+
+        # train weights of G
+        if global_steps % args.n_critic == 0:
+            gen_optimizer.zero_grad()
+            gen_imgs = gen_net(gen_z)
+            real_validity = dis_net(real_imgs_w)
+            fake_validity = dis_net(gen_imgs)
+            '''
+            # Hinge loss
+            g_loss = -torch.mean(fake_validity)
+            '''
+            # print(real_validity.size(), fake_validity.size())
+            g_loss = mmd_rep_loss(real_validity, fake_validity,"gen")
+            g_loss.backward()
+            gen_optimizer.step()
+
+            # learning rate
+            if lr_schedulers:
+                gen_scheduler, dis_scheduler = lr_schedulers
+                g_lr = gen_scheduler.step(global_steps)
+                #d_lr = dis_scheduler.step(global_steps)
+                writer.add_scalar('LR/g_lr', g_lr, global_steps)
+                #writer.add_scalar('LR/d_lr', d_lr, global_steps)
+
+            # moving average weight
+            for p, avg_p in zip(gen_net.parameters(), gen_avg_param):
+                avg_p.mul_(0.999).add_(0.001, p.data)
+
+            writer.add_scalar('g_loss', g_loss.item(), global_steps)
+            gen_step += 1
+
+        # verbose
+        if gen_step and iter_idx % args.print_freq == 0:
+            tqdm.write(
+                '[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]' %
+                (epoch, args.max_epoch_D, iter_idx % len(train_loader), len(train_loader), -1, g_loss.item()))
 
         writer_dict['train_global_steps'] = global_steps + 1
 
