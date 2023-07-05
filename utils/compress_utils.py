@@ -13,6 +13,12 @@ import matplotlib.pyplot as plt
 
 def validate_args(args):
     layers = args.layers
+    if layers is None:
+        print('No layers specified.')
+        args.layers = []
+        args.ranks = []
+        return
+    
     assert(isinstance(layers,list))
     N = len(layers)
 

@@ -56,7 +56,8 @@ parser.add_argument('--beta2', type=float, default=0.9, help='decay of first ord
 parser.add_argument('--init_type', type=str, default='normal',
                     choices=['normal', 'orth', 'xavier_uniform', 'false'],
                     help='init type')
-parser.add_argument('--bu', type=int, default=128, help='loss upper bound') # set bl to 1/bu
+parser.add_argument('--bu', type=float, default=4, help='Upper bound on the RBF Kernel')
+parser.add_argument('--bl', type=float, default=1/4, help='Lower bound on the RBF Kernel')
 
 parser.add_argument('--d_spectral_norm', type=str2bool, default=True,
                     help='add spectral_norm on discriminator or not')
@@ -92,6 +93,11 @@ parser.add_argument('--compress-ratio', type=float, default=None)
 
 parser.add_argument('--compress-mode', choices=['sequential', 'allatonce','grouped'], default='sequential')
 parser.add_argument('--groups', nargs='+', type=int, default=None)
+
+parser.add_argument('--resume', action='store_true')
+
+parser.add_argument('--freeze_layers', nargs='+', type=str) # layers to freeze during training
+parser.add_argument('--eval_before_compression', action='store_true')
 
 def parse_args():
 

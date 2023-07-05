@@ -48,7 +48,8 @@ def parse_args():
     parser.add_argument('--init_type', type=str, default='normal',
                         choices=['normal', 'orth', 'xavier_uniform', 'false'],
                         help='init type')
-    parser.add_argument('--bu', type=int, default=128, help='loss upper bound') # set bl to 1/bu
+    parser.add_argument('--bu', type=float, default=4, help='Upper bound on the RBF Kernel')
+    parser.add_argument('--bl', type=float, default=1/4, help='Lower bound on the RBF Kernel')
     
     parser.add_argument('--d_spectral_norm', type=str2bool, default=True,
                         help='add spectral_norm on discriminator or not')

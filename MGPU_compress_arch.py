@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function
 import cfg_compress
 import archs
 import datasets
-from network import train, validate, LinearLrDecay, load_params, copy_params, train_gen
+from network import train, validate, LinearLrDecay, load_params, copy_params
 from utils.utils import set_log_dir, save_checkpoint, create_logger, count_parameters_in_MB
 from utils.inception_score import _init_inception
 from utils.fid_score import create_inception_graph, check_or_download_inception
@@ -28,10 +28,6 @@ from decompose import *
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
 
-#temporarily added: for old model architecture compatibilitty
-from temp_state_dict_map import map_to_new_state_dict
-
-
 def main():
     args = cfg_compress.parse_args()
     validate_args(args)
@@ -42,7 +38,7 @@ def main():
         str_+= 'byrank'+str(args.rank[0])
     else:
         str_+= 'byratio'+str(args.compress_ratio)
-    args.exp_name = 'compress-'+args.compress_mode+'-'+args.dataset + '-'+ str_+'-' + args.exp_name
+    args.exp_name = 'CP-compress-'+args.compress_mode+'-'+args.dataset + '-'+ str_+'-' + args.exp_name
 
     
     # set visible GPU ids
@@ -74,12 +70,6 @@ def main():
     gen_net = torch.nn.DataParallel(basemodel_gen, device_ids=args.gpu_ids).cuda(args.gpu_ids[0])
     basemodel_dis = eval('archs.' + args.arch + '.Discriminator')(args)
     dis_net = torch.nn.DataParallel(basemodel_dis, device_ids=args.gpu_ids).cuda(args.gpu_ids[0])
-
-
-    ### temp
-    #sd = gen_net.state_dict()
-    #print(sd.keys())
-    ######
 
     # weight init
     def weights_init(m):
@@ -145,8 +135,18 @@ def main():
         start_epoch = checkpoint['epoch']
         uncompressed_fid = checkpoint['best_fid']
         #best_fid = checkpoint['best_fid']  # reset best_fid, to enable saving best-fid after compression
-        gen_net.load_state_dict(checkpoint['gen_state_dict'])
-        dis_net.load_state_dict(checkpoint['dis_state_dict'])
+        if 'gen' in checkpoint.keys():
+            print('Loading generator from checkpoint ...')
+            gen_net = checkpoint['gen']
+        else:
+            print('Loading generator state_dict from checkpoint ...')
+            gen_net.load_state_dict(checkpoint['gen_state_dict'])
+        if 'dis' in checkpoint.keys():
+            print('Loading discriminator from checkpoint ...')
+            dis_net = checkpoint['dis']
+        else:
+            print('Loading discriminator state_dict from checkpoint ...')
+            dis_net.load_state_dict(checkpoint['dis_state_dict'])
         
         dis_optimizer.load_state_dict(checkpoint['dis_optimizer'])
         gen_optimizer.load_state_dict(checkpoint['gen_optimizer'])
@@ -182,6 +182,8 @@ def main():
     print_FLOPs(basemodel_dis, (1, 3, args.img_size, args.img_size), logger)
     
     fixed_z = torch.cuda.FloatTensor(np.random.normal(0, 1, (100, args.latent_dim)))
+    bu  = args.bu
+    bl = args.bl # fix at 1/4
 
     # Compression loop
     steps = len(args.layers)
@@ -191,6 +193,7 @@ def main():
 
     performance_dict = {'fid':[], 'is':[], 'e':[]}
     compression_dict = {'layers':[], 'ranks':[], 'gen_size':[], 'flops':[], 'layer_reduction_ratio':[], 'total_reduction_ratio':[], 'init_flops': flops0, 'init_gen_size': initial_gen_size}
+    
 
     # Evaluate Before compression
     backup_param = copy_params(gen_net)
@@ -205,11 +208,7 @@ def main():
 
     
     logger.info('Layers to be compressed: %s', args.layers)
-    if args.byratio:
-        args.rank = get_ranks_per_layer(gen_net.module, args.compress_ratio, args.layers)
-        logger.info('Ranks per layer for compress-ratio of %f: %s', args.compress_ratio, args.rank)
-    else:
-        logger.info('Ranks per layer for given ranks: %s', args.rank)
+    logger.info('Ranks per layer for given ranks: %s', args.rank)
 
     e_=0
     for step in range(steps):
@@ -229,18 +228,9 @@ def main():
                 break
             else:
                 indx += 1
-        #for i,(n, p) in enumerate(gen_net.named_parameters()):
-        #    print(i, n)
-        #print('*******************************')
-        #gm
-        # print(len(gen_avg_param),len(list(gen_net.parameters())))
-        #print([n for n, p in gen_net.named_parameters()])
 
         new_layers, approx_error, layer_compress_ratio, decomp_rank = decompose_and_replace_conv_layer_by_name(gen_net.module, layer_name, rank=rank, freeze=False, device=args.gpu_ids[0])
-        #for name, param in new_layers.named_parameters():
-        #    print(name)
-        #for i,(n, p) in enumerate(gen_net.named_parameters()):
-        #    print(i, n)
+
         replaced_layers[layer_name] = {'rank':rank, 'approx_error':approx_error, 'layer_compress_ratio': layer_compress_ratio}
         torch.save({'layers':args.layers, 'steps_completed':step, 'ranks':args.rank,  'replaced_layers':replaced_layers}, os.path.join(step_path_dict['prefix'],'decompose_info.pth'))
 
@@ -278,14 +268,14 @@ def main():
                 gen_avg_param.insert(indx, deepcopy(p.detach()))
                 print(p.shape)
                 indx += 1
-        print(len(gen_avg_param), len(list(gen_net.parameters())))
-        #del gen_net_copy
+        #print(len(gen_avg_param), len(list(gen_net.parameters())))
 
 
         # Evaluate after compresion step
         backup_param = copy_params(gen_net)
         load_params(gen_net, gen_avg_param)
         inception_score, std, fid_score = validate(args, fixed_z, fid_stat, gen_net, writer_dict)
+        #inception_score, std, fid_score = 0,0,0
         logger.info(f'(Post-compression, @ step {step} ) Inception score mean: {inception_score}, Inception score std: {std}, '
                     f'FID score: {fid_score} || @ epoch {epoch}.')
         load_params(gen_net, backup_param)
@@ -355,8 +345,11 @@ def main():
                 'gen_optimizer': gen_optimizer.state_dict(),
                 'dis_optimizer': dis_optimizer.state_dict(),
                 'best_fid': best_fid,
-                'path_helper': args.path_helper
-            }, is_best, step_path_dict['ckpt_path'])
+                'path_helper': args.path_helper,
+                'gen': gen_net,
+                'dis': dis_net,
+                'fixed_z': fixed_z,
+            }, is_best, args.path_helper['ckpt_path']) #step_path_dict['ckpt_path'])
             del avg_gen_net
             
         plot_performance(performance_dict, step_path_dict['prefix'])

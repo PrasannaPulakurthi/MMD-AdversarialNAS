@@ -9,6 +9,9 @@ from tensorly.decomposition._tucker import initialize_tucker
 import matplotlib.pyplot as plt
 import os
 import logging
+from utils.utils import count_parameters_in_MB
+from utils.flop_benchmark import print_FLOPs
+from copy import deepcopy
 
 tl.set_backend('pytorch')
 
@@ -79,11 +82,10 @@ def decompose_and_replace_conv_layer_by_name(module, layer_name, rank=None, free
         children = list(layer.named_children())
         if len(children)>0:
             queue.extend([(name,child,layer,fullname+'.'+name) for name,child in children])
-    if freeze:
-        for name, param in module.named_parameters():
-            if layer_name in name:
-                break
-            param.requires_grad = False
+    if freeze:  # freeze just the given layer
+        for name, param in new_layers.named_parameters():
+                param.requires_grad = False
+            #param.requires_grad = False
     return  new_layers,error, layer_compress_ratio, rank
 
 def cp_decomposition_con_layer(layer, rank):
@@ -265,3 +267,123 @@ def init_tucker_with_eye_spatial_modes(tensor, rank, init='random'):
     core = core.to("cuda")
 
     return (core, factors)
+
+
+class DecompositionInfo:
+    def __init__(self):
+        self.layers = []
+        self.ranks = []
+        self.approx_error = []
+
+    def append(self, layer, rank, approx_error):
+        self.layers.append(layer)
+        self.ranks.append(rank)
+        self.approx_error.append(approx_error)        
+        
+class CompressionInfo:
+    def __init__(self, initial_size=None, initial_flops=None):
+        self.layers = []
+        self.ranks = []
+        self.initial_size = initial_size
+        self.initial_flops = initial_flops
+        self.sizes = []
+        self.flops = []
+        self.per_layer_reduction_ratio = []     # has same order as layers, ranks
+        
+        self.total_size_reduction_ratio = []
+        self.total_flops_reduction_ratio = []
+    
+    def add(self, layer, rank, size, flops, layer_reduction_ratio):
+        self.layers.append(layer)
+        self.ranks.append(rank)
+        self.sizes.append(size)
+        self.flops.append(flops)
+        
+        self.per_layer_reduction_ratio.append(layer_reduction_ratio)
+
+        self.total_size_reduction_ratio.append(100*(self.initial_size - size)/self.initial_size)
+        self.total_flops_reduction_ratio.append(100*(self.initial_flops - flops)/self.initial_flops)
+    
+    def get_compression_ratio(self):
+        try:
+            return self.total_size_reduction_ratio[-1]
+        except:
+            logger.warning('No compression ratio found')
+            return 0
+
+class Compression:
+    def __init__(self, size0, flops0):
+        self.init_size = size0
+        self.init_flops = flops0
+        self.decomposition_info = DecompositionInfo()
+        self.compression_info = CompressionInfo(size0, flops0)
+
+    def apply_decomposition_from_checkpoint(self, args, network, decomposition_info:DecompositionInfo, compression_info: CompressionInfo = None): ##TODO
+        for layer, rank in zip(decomposition_info.layers, decomposition_info.ranks):
+            self.apply_layer_compression(args, network, layer, rank)
+        self.decomposition_info = decomposition_info
+        if compression_info is not None:
+            self.compression_info = compression_info
+
+
+    def apply_layer_compression(self, args, network, layer, rank, logger=None, avg_param=None):
+        try:
+            logger.info('Decomposing layer {} with rank {}'.format(layer, rank))
+        except:
+            print('Decomposing layer {} with rank {}'.format(layer, rank))
+
+
+        if avg_param is not None:
+            indx = 0
+            for avg_param_i, (name, param) in zip(avg_param, network.named_parameters()):
+                if name == ('module.'+layer+'.weight'):
+                    print('found at index ', indx)
+                    assert(avg_param_i.shape == param.shape)
+                    break
+                else:
+                    indx += 1
+        if args.freeze_layers and (layer in args.freeze_layers):
+            if logger:
+                logger.info('Freezing layer {}'.format(layer))
+            freeze = True
+        else:
+            freeze = False
+        new_layers, approx_error, layer_compress_ratio, decomp_rank = decompose_and_replace_conv_layer_by_name(network.module, layer, rank=rank, freeze=freeze, device=args.gpu_ids[0])
+        # calculate sizes after layer decomposition
+        step_gen_size = count_parameters_in_MB(network)
+        step_flops = print_FLOPs(network, (1, args.latent_dim), logger)
+
+        self.compression_info.add(layer, rank, step_gen_size, step_flops, layer_compress_ratio)
+        self.decomposition_info.append(layer=layer, rank=decomp_rank, approx_error=approx_error[-1])
+
+        if logger is not None:
+            logger.info('Layer Approximation error: {}, Layer Reduction ratio: {}'.format(approx_error[-1], layer_compress_ratio))
+            logger.info('Param size of G after decomposing %s = %fM',layer, step_gen_size)
+            logger.info('FLOPs of G at step after decomposing %s = %fG', layer, step_flops)
+            logger.info('Compression ratio of G at step %s  = %f', layer, self.compression_info.get_compression_ratio())
+        else:
+            print('Layer Approximation error: {}, Layer Reduction ratio: {}'.format(approx_error[-1], layer_compress_ratio))
+            print(f"Param size of G after decomposing {layer} = {step_gen_size}M")
+            print(f"FLOPs of G at step after decomposing {layer} = {step_flops}M")
+            print(f"Compression ratio of G at step {layer}  = {self.compression_info.get_compression_ratio()}")
+
+        if avg_param is not None:
+            # The gen_avg_param of the compressed layer must be replaced with the new compressed layer
+            avg_param.pop(indx)
+            for n, p in new_layers.named_parameters():#gen_net.named_parameters():
+                #if layer_name in n and 'weight' in n:
+                if 'weight' in n:
+                    avg_param.insert(indx, deepcopy(p.detach()))
+                    indx += 1
+
+        return avg_param
+
+    def apply_compression(self, args, network, avg_param, layers, ranks, logger): ##TODO
+        steps = len(layers)
+        for step in range(steps):
+            layer_name = layers[step]
+            rank = ranks[step]
+            avg_param = self.apply_layer_compression(args, network, layer_name, rank, logger, avg_param)
+
+        return avg_param, self.compression_info, self.decomposition_info
+
