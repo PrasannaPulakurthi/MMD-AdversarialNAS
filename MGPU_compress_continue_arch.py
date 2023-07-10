@@ -28,10 +28,6 @@ from decompose import *
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
 
-#temporarily added: for old model architecture compatibilitty
-from temp_state_dict_map import map_to_new_state_dict
-
-
 def main():
     args = cfg_compress.parse_args()
     validate_args(args)
@@ -42,7 +38,7 @@ def main():
         str_+= 'byrank'+str(args.rank[0])
     else:
         str_+= 'byratio'+str(args.compress_ratio)
-    args.exp_name = 'Tucker_compress-'+args.compress_mode+'-'+args.dataset + '-'+ str_+'-' + args.exp_name
+    args.exp_name = 'compress-'+args.compress_mode+'-'+args.dataset + '-'+ str_+'-' + args.exp_name
 
     
     # set visible GPU ids
@@ -74,12 +70,6 @@ def main():
     gen_net = torch.nn.DataParallel(basemodel_gen, device_ids=args.gpu_ids).cuda(args.gpu_ids[0])
     basemodel_dis = eval('archs.' + args.arch + '.Discriminator')(args)
     dis_net = torch.nn.DataParallel(basemodel_dis, device_ids=args.gpu_ids).cuda(args.gpu_ids[0])
-
-
-    ### temp
-    #sd = gen_net.state_dict()
-    #print(sd.keys())
-    ######
 
     # weight init
     def weights_init(m):
@@ -139,23 +129,27 @@ def main():
         print(f'=> resuming from {args.checkpoint}')
         print(os.path.join('exps', args.checkpoint))
         assert os.path.exists(os.path.join('exps', args.checkpoint))
-        checkpoint_file = os.path.join('exps', args.checkpoint, 'Model', 'checkpoint_best.pth')
+        checkpoint_file = os.path.join('exps', args.checkpoint, 'Model', 'checkpoint.pth')#'checkpoint_best.pth')
         assert os.path.exists(checkpoint_file)
         checkpoint = torch.load(checkpoint_file)
         start_epoch = checkpoint['epoch']
         uncompressed_fid = checkpoint['best_fid']
         #best_fid = checkpoint['best_fid']  # reset best_fid, to enable saving best-fid after compression
         if 'gen' in checkpoint.keys():
-            print('Loading generator from checkpoint...')
+            print('Loading generator from checkpoint ...')
             gen_net = checkpoint['gen']
+            gen_net.load_state_dict(checkpoint['gen_state_dict'])
+            gen_net = torch.nn.DataParallel(gen_net.module, device_ids=args.gpu_ids).cuda(args.gpu_ids[0])
         else:
-            print('Loading generator state dict from checkpoint...')
+            print('Loading generator state_dict from checkpoint ...')
             gen_net.load_state_dict(checkpoint['gen_state_dict'])
         if 'dis' in checkpoint.keys():
-            print('Loading discriminator from checkpoint...')
+            print('Loading discriminator from checkpoint ...')
             dis_net = checkpoint['dis']
+            dis_net.load_state_dict(checkpoint['dis_state_dict'])
+            dis_net = torch.nn.DataParallel(dis_net.module, device_ids=args.gpu_ids).cuda(args.gpu_ids[0])
         else:
-            print('Loading discriminator state dict from checkpoint...')
+            print('Loading discriminator state_dict from checkpoint ...')
             dis_net.load_state_dict(checkpoint['dis_state_dict'])
         
         dis_optimizer.load_state_dict(checkpoint['dis_optimizer'])
@@ -241,71 +235,63 @@ def main():
                 break
             else:
                 indx += 1
-        #for i,(n, p) in enumerate(gen_net.named_parameters()):
-        #    print(i, n)
-        #print('*******************************')
-        #gm
-        # print(len(gen_avg_param),len(list(gen_net.parameters())))
-        #print([n for n, p in gen_net.named_parameters()])
+
+        ##new_layers, approx_error, layer_compress_ratio, decomp_rank = decompose_and_replace_conv_layer_by_name(gen_net.module, layer_name, rank=rank, freeze=False, device=args.gpu_ids[0])
+
+        ##replaced_layers[layer_name] = {'rank':rank, 'approx_error':approx_error, 'layer_compress_ratio': layer_compress_ratio}
+        ##torch.save({'layers':args.layers, 'steps_completed':step, 'ranks':args.rank,  'replaced_layers':replaced_layers}, os.path.join(step_path_dict['prefix'],'decompose_info.pth'))
+
+        ##logger.info('Layer Approximation error: {}, Layer Reduction ratio: {}'.format(approx_error[-1], layer_compress_ratio))
+
+        ##step_gen_size = count_parameters_in_MB(gen_net)
+        ##step_flops = print_FLOPs(gen_net, (1, args.latent_dim), logger)
         
-        new_layers, approx_error, layer_compress_ratio, decomp_rank = decompose_and_replace_conv_layer_by_name(gen_net.module, layer_name, rank=rank, freeze=False, device=args.gpu_ids[0], decomposition='tucker')
-        #for name, param in new_layers.named_parameters():
-        #    print(name)
-        #for i,(n, p) in enumerate(gen_net.named_parameters()):
-        #    print(i, n)
-        replaced_layers[layer_name] = {'rank':rank, 'approx_error':approx_error, 'layer_compress_ratio': layer_compress_ratio}
-        torch.save({'layers':args.layers, 'steps_completed':step, 'ranks':args.rank,  'replaced_layers':replaced_layers}, os.path.join(step_path_dict['prefix'],'decompose_info.pth'))
+        ##step_gen_paramsize = sum(p.numel() for p in gen_net.parameters())
+        ##logger.info('Param size of G at step %d = %fMB', step, step_gen_size)
+        ##logger.info('Number of parameters of G at step %d = %d', step, step_gen_paramsize)
 
-        logger.info('Layer Approximation error: {}, Layer Reduction ratio: {}'.format(approx_error[-1], layer_compress_ratio))
-
-        step_gen_size = count_parameters_in_MB(gen_net)
-        step_flops = print_FLOPs(gen_net, (1, args.latent_dim), logger)
-        
-        step_gen_paramsize = sum(p.numel() for p in gen_net.parameters())
-        logger.info('Param size of G at step %d = %fMB', step, step_gen_size)
-        logger.info('Number of parameters of G at step %d = %d', step, step_gen_paramsize)
-
-        logger.info(f'Total number of parameters: {initial_gen_paramsize}. Total number of parameters is reduced by {initial_gen_paramsize-step_gen_paramsize} ({((initial_gen_paramsize-step_gen_paramsize)/initial_gen_paramsize)*100:.2f}%)')
-        compression_dict['layers'].append(layer_name)
-        compression_dict['ranks'].append(decomp_rank)
-        compression_dict['gen_size'].append(step_gen_size)
-        compression_dict['flops'].append(step_flops)
-        compression_dict['layer_reduction_ratio'].append(layer_compress_ratio)
-        compression_dict['total_reduction_ratio'].append(((initial_gen_paramsize-step_gen_paramsize)/initial_gen_paramsize)*100)
-        torch.save(compression_dict, os.path.join(args.path_helper['prefix'],'compression_info.pth'))
+        ##logger.info(f'Total number of parameters: {initial_gen_paramsize}. Total number of parameters is reduced by {initial_gen_paramsize-step_gen_paramsize} ({((initial_gen_paramsize-step_gen_paramsize)/initial_gen_paramsize)*100:.2f}%)')
+        ##compression_dict['layers'].append(layer_name)
+        ##compression_dict['ranks'].append(decomp_rank)
+        ##compression_dict['gen_size'].append(step_gen_size)
+        ##compression_dict['flops'].append(step_flops)
+        ##compression_dict['layer_reduction_ratio'].append(layer_compress_ratio)
+        ##compression_dict['total_reduction_ratio'].append(((initial_gen_paramsize-step_gen_paramsize)/initial_gen_paramsize)*100)
+        ##torch.save(compression_dict, os.path.join(args.path_helper['prefix'],'compression_info.pth'))
 
 
 
         gen_net = gen_net.cuda(args.gpu_ids[0])
 
-        logger.info('Generator modules after step %d compression: %s', step, [n for n, p in gen_net.named_parameters()])
-        print('assert( %d = %d )',len(gen_avg_param), len(list(gen_net.parameters())))
+        ##logger.info('Generator modules after step %d compression: %s', step, [n for n, p in gen_net.named_parameters()])
+        ##print('assert( %d = %d )',len(gen_avg_param), len(list(gen_net.parameters())))
 
 
         # The gen_avg_param of the compressed layer must be replaced with the new compressed layer
-        gen_avg_param.pop(indx)
-        for n, p in new_layers.named_parameters():#gen_net.named_parameters():
-            #if layer_name in n and 'weight' in n:
-            if 'weight' in n:
-                gen_avg_param.insert(indx, deepcopy(p.detach()))
-                indx += 1
-        print(len(gen_avg_param), len(list(gen_net.parameters())))
+        ##gen_avg_param.pop(indx)
+        ##for n, p in new_layers.named_parameters():#gen_net.named_parameters():
+        ##    #if layer_name in n and 'weight' in n:
+        ##    if 'weight' in n:
+        ##        gen_avg_param.insert(indx, deepcopy(p.detach()))
+        ##        print(p.shape)
+        ##        indx += 1
+        ##print(len(gen_avg_param), len(list(gen_net.parameters())))
         #del gen_net_copy
 
 
         # Evaluate after compresion step
-        #backup_param = copy_params(gen_net)
-        #load_params(gen_net, gen_avg_param)
-        #inception_score, std, fid_score = validate(args, fixed_z, fid_stat, gen_net, writer_dict)
-        inception_score, std, fid_score = 0, 0, 0
-        #logger.info(f'(Post-compression, @ step {step} ) Inception score mean: {inception_score}, Inception score std: {std}, '
-        #            f'FID score: {fid_score} || @ epoch {epoch}.')
-        #load_params(gen_net, backup_param)
+        ##backup_param = copy_params(gen_net)
+        ##load_params(gen_net, gen_avg_param)
+        ##inception_score, std, fid_score = validate(args, fixed_z, fid_stat, gen_net, writer_dict)
+        #inception_score, std, fid_score = 0,0,0
+        ##logger.info(f'(Post-compression, @ step {step} ) Inception score mean: {inception_score}, Inception score std: {std}, '
+        ##            f'FID score: {fid_score} || @ epoch {epoch}.')
+        ##load_params(gen_net, backup_param)
 
-        performance_dict['fid'].append(fid_score)
-        performance_dict['is'].append(inception_score)
-        performance_dict['e'].append(e_)
-        e_+=1
+        ##performance_dict['fid'].append(fid_score)
+        ##performance_dict['is'].append(inception_score)
+        ##performance_dict['e'].append(e_)
+        ##e_+=1
 
         if (args.compress_mode == 'allatonce') and (step < (steps-1)):
             logger.info('plotting performance for step {}'.format(step))
@@ -329,24 +315,7 @@ def main():
 
 
         args.max_epoch_D=step_epochs
-        # save model
-        #avg_gen_net = deepcopy(gen_net)
-        #load_params(avg_gen_net, gen_avg_param)
-        #save_checkpoint({
-        #    'epoch': epoch + 1,
-        #    'model': args.arch,
-        #    'gen_state_dict': gen_net.state_dict(),
-        #    'dis_state_dict': dis_net.state_dict(),
-        #    'avg_gen_state_dict': avg_gen_net.state_dict(),
-        #    'gen_optimizer': gen_optimizer.state_dict(),
-        #    'dis_optimizer': dis_optimizer.state_dict(),
-        #    'best_fid': best_fid,
-        #    'path_helper': args.path_helper,
-        #    'gen': gen_net,
-        #    'dis': dis_net,
-        #}, True, args.path_helper['ckpt_path']) #step_path_dict['ckpt_path'])
-        #del avg_gen_net
-        #quit()
+        
         # train loop
         for epoch in tqdm(range(int(0), int(step_epochs)), desc='total progress'):
             lr_schedulers = (gen_scheduler, dis_scheduler) if args.lr_decay else None
@@ -388,6 +357,7 @@ def main():
                 'path_helper': args.path_helper,
                 'gen': gen_net,
                 'dis': dis_net,
+                'fixed_z': fixed_z,
             }, is_best, args.path_helper['ckpt_path']) #step_path_dict['ckpt_path'])
             del avg_gen_net
             

@@ -3,7 +3,7 @@
 
 from __future__ import absolute_import, division, print_function
 
-import cfg
+import cfg_compress
 import archs
 import datasets
 from network import train, validate, LinearLrDecay, load_params, copy_params
@@ -11,6 +11,7 @@ from utils.utils import set_log_dir, save_checkpoint, create_logger, count_param
 from utils.inception_score import _init_inception
 from utils.fid_score import create_inception_graph, check_or_download_inception
 from utils.flop_benchmark import print_FLOPs
+from utils.compress_utils import *
 
 import torch
 import os
@@ -19,15 +20,20 @@ import torch.nn as nn
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from copy import deepcopy
-from utils.compress_utils import plot_performance
+from decompose import Compression, DecompositionInfo, CompressionInfo
+from utils.metrics import PerformanceStore
 
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
 
 
 def main():
-    args = cfg.parse_args()
+    args = cfg_compress.parse_args()
+    validate_args(args)
+    validate_dis_rgs(args)
     torch.cuda.manual_seed(args.random_seed)
+
+    args.exp_name = 'CP-compress-'+args.dataset + '-'+ args.exp_name
 
     # set visible GPU ids
     if len(args.gpu_ids) > 0:
@@ -62,10 +68,6 @@ def main():
     basemodel_dis = eval('archs.' + args.arch + '.Discriminator')(args)
     dis_net = torch.nn.DataParallel(basemodel_dis, device_ids=args.gpu_ids).cuda(args.gpu_ids[0])
 
-    # basemodel_gen = eval('archs.' + args.arch + '.Generator')(args=args)
-    # gen_net = torch.nn.DataParallel(basemodel_gen, device_ids=args.gpu_ids).cuda(args.gpu_ids[0])
-    # basemodel_dis = eval('archs.' + args.arch + '.Discriminator')(args=args)
-    # dis_net = torch.nn.DataParallel(basemodel_dis, device_ids=args.gpu_ids).cuda(args.gpu_ids[0])
 
     # weight init
     def weights_init(m):
@@ -117,6 +119,17 @@ def main():
     gen_avg_param = copy_params(gen_net)
     start_epoch = 0
     best_fid = 1e4
+    best_is = 0
+
+
+    # model size
+    gen_params0 = count_parameters_in_MB(gen_net)
+    dis_params0 = count_parameters_in_MB(dis_net)
+    gen_flops0 = print_FLOPs(basemodel_gen, (1, args.latent_dim))
+    dis_flops0 = print_FLOPs(basemodel_dis, (1, 3, args.img_size, args.img_size))
+    # Instanciate the Compression object
+    compress_obj = Compression(gen_params0, gen_flops0)
+    dis_compress_obj = Compression(dis_params0, dis_flops0)
 
     # set writer
     if args.checkpoint:
@@ -124,23 +137,52 @@ def main():
         print(f'=> resuming from {args.checkpoint}')
         print(os.path.join('exps', args.checkpoint))
         assert os.path.exists(os.path.join('exps', args.checkpoint))
-        checkpoint_file = os.path.join('exps', args.checkpoint, 'Model', 'checkpoint_best.pth')
+        checkpoint_name='checkpoint.pth' if args.current else 'checkpoint_best.pth'
+        print('checkpoint file: ', checkpoint_name)
+        checkpoint_file = os.path.join('exps', args.checkpoint, 'Model', checkpoint_name)
         assert os.path.exists(checkpoint_file)
         checkpoint = torch.load(checkpoint_file)
+
         start_epoch = checkpoint['epoch']
         best_fid = checkpoint['best_fid']
-        if 'gen' in checkpoint.keys():
-            print('Loading generator from checkpoint ...')
-            gen_net = checkpoint['gen']
+        try:
+            best_is = checkpoint['best_is']
+        except:
+            best_is = 0
+
+        if 'decomposition_info' in checkpoint.keys():
+            print('Applying decomposition to generator architecture from the checkpoint...')
+            try:
+                compression_info = checkpoint['compression_info']
+            except:
+                compression_info = None
+            compress_obj.apply_decomposition_from_checkpoint(args, gen_net, checkpoint['decomposition_info'], compression_info)  # apply decomposition before loading checkpoint
         else:
-            print('Loading generator state dict from checkpoint ...')
-            gen_net.load_state_dict(checkpoint['gen_state_dict'])
-        if 'dis' in checkpoint.keys():
-            print('Loading discriminator from checkpoint ...')
-            dis_net = checkpoint['dis']
+            # starting from pretrained model
+            # re-set the best_fid and best_is, otherwise, 
+            # the best checkpoint will not be saved due to 
+            # the performance degradation caused by the compression
+            args.resume = False ## saves to different folders
+            best_fid = 1e4
+            best_is = 0
+            start_epoch = 0
+        if 'dis_decomposition_info' in checkpoint.keys():
+            print('Applying decomposition to discriminator architecture from the checkpoint...')
+            try:
+                dis_compression_info = checkpoint['dis_compression_info']
+            except:
+                dis_compression_info = None
+            dis_compress_obj.apply_decomposition_from_checkpoint(args, dis_net, checkpoint['dis_decomposition_info'], dis_compression_info)  # apply decomposition before loading checkpoint
+        
+        if 'performance_store' in checkpoint.keys():
+            performance_store = checkpoint['performance_store']
+            print('Loaded performance store from the checkpoint')
+            print(performance_store)
         else:
-            print('Loading discriminator state dict from checkpoint ...')
-            dis_net.load_state_dict(checkpoint['dis_state_dict'])
+            performance_store = None
+        
+        gen_net.load_state_dict(checkpoint['gen_state_dict'])
+        dis_net.load_state_dict(checkpoint['dis_state_dict'])
         gen_optimizer.load_state_dict(checkpoint['gen_optimizer'])
         dis_optimizer.load_state_dict(checkpoint['dis_optimizer'])
         avg_gen_net = deepcopy(gen_net)
@@ -148,9 +190,11 @@ def main():
         gen_avg_param = copy_params(avg_gen_net)
         del avg_gen_net
 
-        #args.path_helper = set_log_dir('exps', args.checkpoint+'-continue-'+args.exp_name)#checkpoint['path_helper']
-        args.path_helper = set_log_dir('exps', args.checkpoint)
-        #args.path_helper = checkpoint['path_helper']
+        if args.resume:
+            args.path_helper = checkpoint['path_helper']
+        else:
+            args.path_helper = set_log_dir('exps', args.exp_name)
+
         logger = create_logger(args.path_helper['log_path'])
         logger.info(f'=> loaded checkpoint {checkpoint_file} (epoch {start_epoch})')
     else:
@@ -165,6 +209,14 @@ def main():
         'train_global_steps': start_epoch * len(train_loader),
         'valid_global_steps': start_epoch // args.val_freq,
     }
+
+    logger.info('Initial Param size of G = %fM', gen_params0)
+    logger.info('Initial Param size of D = %fM', count_parameters_in_MB(dis_net))
+    logger.info('Initial FLOPs of G = %fM', gen_flops0)
+    logger.info('Initial FLOPs of D = %fM', print_FLOPs(basemodel_dis, (1, 3, args.img_size, args.img_size)))
+
+    if performance_store is None:
+        performance_store = PerformanceStore()
     
     # for visualization
     if args.draw_arch:
@@ -172,39 +224,46 @@ def main():
         draw_graph_G(genotype_G, save=True, file_path=os.path.join(args.path_helper['graph_vis_path'], 'latest_G'))
         # draw_graph_D(genotype_D, save=True, file_path=os.path.join(args.path_helper['graph_vis_path'], 'latest_D'))
 
-    # model size
-    logger.info('Param size of G = %fMB', count_parameters_in_MB(gen_net))
-    logger.info('Param size of D = %fMB', count_parameters_in_MB(dis_net))
-    print_FLOPs(basemodel_gen, (1, args.latent_dim), logger)
-    print_FLOPs(basemodel_dis, (1, 3, args.img_size, args.img_size), logger)
-    
-    if args.checkpoint and 'fixed_z' in checkpoint.keys():
-        fixed_z = checkpoint['fixed_z']
-    else:
-        fixed_z = torch.cuda.FloatTensor(np.random.normal(0, 1, (100, args.latent_dim)))
-    bu  = args.bu
-    bl = 1/args.bu
-    performance_dict = {'fid':[], 'is':[], 'e':[]} # for performance evaluation
+    fixed_z = torch.cuda.FloatTensor(np.random.normal(0, 1, (100, args.latent_dim)))
+
+    # Evaluate before compression
+    if args.eval_before_compression:
+        # Evaluate Before compression
+        backup_param = copy_params(gen_net)
+        load_params(gen_net, gen_avg_param)
+        inception_score, std, fid_score = validate(args, fixed_z, fid_stat, gen_net, writer_dict)
+        logger.info(f'Initial Inception score mean: {inception_score}, Inception score std: {std}, '
+                    f'FID score: {fid_score} || @ epoch {start_epoch}.')
+        load_params(gen_net, backup_param)
+        performance_store.set_init(fid_score, inception_score)
+        performance_store.plot(args.path_helper['prefix'])
+
+    # Apply compression on all layers of the model (one-shot)
+    print(args.layers, args.dis_layers)
+    gen_avg_param, compression_info, decomposition_info = compress_obj.apply_compression(args, gen_net, gen_avg_param, args.layers, args.rank, logger)
+    dis_avg_param, dis_compression_info, dis_decomposition_info = dis_compress_obj.apply_compression(args, dis_net, None, args.dis_layers, args.dis_rank, logger)
+
+    for name, param in gen_net.named_parameters():
+        logger.info(f"{name}-{param.requires_grad}")
     
     # train loop
-    for epoch in tqdm(range(int(0), int(args.max_epoch_D)), desc='total progress'):
+    for epoch in tqdm(range(int(start_epoch), int(args.max_epoch_D)), desc='total progress'):
         lr_schedulers = (gen_scheduler, dis_scheduler) if args.lr_decay else None
         train(args, gen_net, dis_net, gen_optimizer, dis_optimizer,
-              gen_avg_param, train_loader, epoch, writer_dict, lr_schedulers, bu=bu, bl=bl)
+              gen_avg_param, train_loader, epoch, writer_dict, lr_schedulers)
 
         if epoch % args.val_freq == 0 or epoch == int(args.max_epoch_D)-1:
             backup_param = copy_params(gen_net)
             load_params(gen_net, gen_avg_param)
             inception_score, std, fid_score = validate(args, fixed_z, fid_stat, gen_net, writer_dict)
-            performance_dict['fid'].append(fid_score)
-            performance_dict['is'].append(inception_score)
-            performance_dict['e'].append(epoch)
             logger.info(f'Inception score mean: {inception_score}, Inception score std: {std}, '
                         f'FID score: {fid_score} || @ epoch {epoch}.')
             load_params(gen_net, backup_param)
-            plot_performance(performance_dict, args.path_helper['prefix'])
+            performance_store.update(fid_score, inception_score, epoch)
+            performance_store.plot(args.path_helper['prefix'])
             if fid_score < best_fid:
                 best_fid = fid_score
+                best_is = inception_score
                 is_best = True
             else:
                 is_best = False
@@ -224,11 +283,13 @@ def main():
             'dis_optimizer': dis_optimizer.state_dict(),
             'best_fid': best_fid,
             'path_helper': args.path_helper,
-            'gen': gen_net,
-            'dis': dis_net,
+            'compression_info': compression_info,
+            'dis_compression_info': dis_compression_info,
+            'decomposition_info': decomposition_info,
+            'dis_decomposition_info': dis_decomposition_info,
+            'performance_store': performance_store,
         }, is_best, args.path_helper['ckpt_path'])
         del avg_gen_net
-    plot_performance(performance_dict, args.path_helper['prefix'])
 
 
 if __name__ == '__main__':

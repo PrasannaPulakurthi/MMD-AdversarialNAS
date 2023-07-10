@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function
 import cfg_compress
 import archs
 import datasets
-from network import train, validate, LinearLrDecay, load_params, copy_params, train_gen
+from network import train, validate, LinearLrDecay, load_params, copy_params
 from utils.utils import set_log_dir, save_checkpoint, create_logger, count_parameters_in_MB
 from utils.inception_score import _init_inception
 from utils.fid_score import create_inception_graph, check_or_download_inception
@@ -28,10 +28,6 @@ from decompose import *
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
 
-#temporarily added: for old model architecture compatibilitty
-from temp_state_dict_map import map_to_new_state_dict
-
-
 def main():
     args = cfg_compress.parse_args()
     validate_args(args)
@@ -42,7 +38,7 @@ def main():
         str_+= 'byrank'+str(args.rank[0])
     else:
         str_+= 'byratio'+str(args.compress_ratio)
-    args.exp_name = 'Tucker_compress-'+args.compress_mode+'-'+args.dataset + '-'+ str_+'-' + args.exp_name
+    args.exp_name = 'CP-compress-'+args.compress_mode+'-'+args.dataset + '-'+ str_+'-' + args.exp_name
 
     
     # set visible GPU ids
@@ -74,12 +70,6 @@ def main():
     gen_net = torch.nn.DataParallel(basemodel_gen, device_ids=args.gpu_ids).cuda(args.gpu_ids[0])
     basemodel_dis = eval('archs.' + args.arch + '.Discriminator')(args)
     dis_net = torch.nn.DataParallel(basemodel_dis, device_ids=args.gpu_ids).cuda(args.gpu_ids[0])
-
-
-    ### temp
-    #sd = gen_net.state_dict()
-    #print(sd.keys())
-    ######
 
     # weight init
     def weights_init(m):
@@ -131,7 +121,7 @@ def main():
     gen_avg_param = copy_params(gen_net)
     start_epoch = 0
     best_fid = 1e4
-
+    best_is = 0 
 
     # set writer
     if args.checkpoint:
@@ -146,16 +136,24 @@ def main():
         uncompressed_fid = checkpoint['best_fid']
         #best_fid = checkpoint['best_fid']  # reset best_fid, to enable saving best-fid after compression
         if 'gen' in checkpoint.keys():
-            print('Loading generator from checkpoint...')
+            print('Loading generator from checkpoint ...')
             gen_net = checkpoint['gen']
+            if isinstance(gen_net, torch.nn.DataParallel):
+                gen_net = gen_net.module
+            gen_net = torch.nn.DataParallel(gen_net, device_ids=args.gpu_ids).cuda(args.gpu_ids[0])
+            gen_net.load_state_dict(checkpoint['gen_state_dict'])
         else:
-            print('Loading generator state dict from checkpoint...')
+            print('Loading generator state_dict from checkpoint ...')
             gen_net.load_state_dict(checkpoint['gen_state_dict'])
         if 'dis' in checkpoint.keys():
-            print('Loading discriminator from checkpoint...')
+            print('Loading discriminator from checkpoint ...')
             dis_net = checkpoint['dis']
+            if isinstance(dis_net, torch.nn.DataParallel):
+                dis_net = dis_net.module
+            dis_net = torch.nn.DataParallel(dis_net, device_ids=args.gpu_ids).cuda(args.gpu_ids[0])
+            dis_net.load_state_dict(checkpoint['dis_state_dict'])
         else:
-            print('Loading discriminator state dict from checkpoint...')
+            print('Loading discriminator state_dict from checkpoint ...')
             dis_net.load_state_dict(checkpoint['dis_state_dict'])
         
         dis_optimizer.load_state_dict(checkpoint['dis_optimizer'])
@@ -192,8 +190,11 @@ def main():
     print_FLOPs(basemodel_dis, (1, 3, args.img_size, args.img_size), logger)
     
     fixed_z = torch.cuda.FloatTensor(np.random.normal(0, 1, (100, args.latent_dim)))
-    bu  = args.bu
-    bl = 1/args.bu
+
+    improvement_count = 6
+    icounter = improvement_count
+    logger.info(f'Upper bound: {args.bu} and Lower Bound: {args.bl}.')
+    logger.info(f'Best FID score: {best_fid}. Best IS score: {best_is}.')
 
     # Compression loop
     steps = len(args.layers)
@@ -241,18 +242,9 @@ def main():
                 break
             else:
                 indx += 1
-        #for i,(n, p) in enumerate(gen_net.named_parameters()):
-        #    print(i, n)
-        #print('*******************************')
-        #gm
-        # print(len(gen_avg_param),len(list(gen_net.parameters())))
-        #print([n for n, p in gen_net.named_parameters()])
-        
-        new_layers, approx_error, layer_compress_ratio, decomp_rank = decompose_and_replace_conv_layer_by_name(gen_net.module, layer_name, rank=rank, freeze=False, device=args.gpu_ids[0], decomposition='tucker')
-        #for name, param in new_layers.named_parameters():
-        #    print(name)
-        #for i,(n, p) in enumerate(gen_net.named_parameters()):
-        #    print(i, n)
+
+        new_layers, approx_error, layer_compress_ratio, decomp_rank = decompose_and_replace_conv_layer_by_name(gen_net.module, layer_name, rank=rank, freeze=False, device=args.gpu_ids[0])
+
         replaced_layers[layer_name] = {'rank':rank, 'approx_error':approx_error, 'layer_compress_ratio': layer_compress_ratio}
         torch.save({'layers':args.layers, 'steps_completed':step, 'ranks':args.rank,  'replaced_layers':replaced_layers}, os.path.join(step_path_dict['prefix'],'decompose_info.pth'))
 
@@ -288,19 +280,19 @@ def main():
             #if layer_name in n and 'weight' in n:
             if 'weight' in n:
                 gen_avg_param.insert(indx, deepcopy(p.detach()))
+                print(p.shape)
                 indx += 1
         print(len(gen_avg_param), len(list(gen_net.parameters())))
-        #del gen_net_copy
 
 
         # Evaluate after compresion step
-        #backup_param = copy_params(gen_net)
-        #load_params(gen_net, gen_avg_param)
-        #inception_score, std, fid_score = validate(args, fixed_z, fid_stat, gen_net, writer_dict)
-        inception_score, std, fid_score = 0, 0, 0
-        #logger.info(f'(Post-compression, @ step {step} ) Inception score mean: {inception_score}, Inception score std: {std}, '
-        #            f'FID score: {fid_score} || @ epoch {epoch}.')
-        #load_params(gen_net, backup_param)
+        backup_param = copy_params(gen_net)
+        load_params(gen_net, gen_avg_param)
+        inception_score, std, fid_score = validate(args, fixed_z, fid_stat, gen_net, writer_dict)
+        #inception_score, std, fid_score = 0,0,0
+        logger.info(f'(Post-compression, @ step {step} ) Inception score mean: {inception_score}, Inception score std: {std}, '
+                    f'FID score: {fid_score} || @ epoch {epoch}.')
+        load_params(gen_net, backup_param)
 
         performance_dict['fid'].append(fid_score)
         performance_dict['is'].append(inception_score)
@@ -329,29 +321,11 @@ def main():
 
 
         args.max_epoch_D=step_epochs
-        # save model
-        #avg_gen_net = deepcopy(gen_net)
-        #load_params(avg_gen_net, gen_avg_param)
-        #save_checkpoint({
-        #    'epoch': epoch + 1,
-        #    'model': args.arch,
-        #    'gen_state_dict': gen_net.state_dict(),
-        #    'dis_state_dict': dis_net.state_dict(),
-        #    'avg_gen_state_dict': avg_gen_net.state_dict(),
-        #    'gen_optimizer': gen_optimizer.state_dict(),
-        #    'dis_optimizer': dis_optimizer.state_dict(),
-        #    'best_fid': best_fid,
-        #    'path_helper': args.path_helper,
-        #    'gen': gen_net,
-        #    'dis': dis_net,
-        #}, True, args.path_helper['ckpt_path']) #step_path_dict['ckpt_path'])
-        #del avg_gen_net
-        #quit()
         # train loop
         for epoch in tqdm(range(int(0), int(step_epochs)), desc='total progress'):
             lr_schedulers = (gen_scheduler, dis_scheduler) if args.lr_decay else None
             train(args, gen_net, dis_net, gen_optimizer, dis_optimizer,
-                gen_avg_param, train_loader, epoch, writer_dict, lr_schedulers, bu=bu, bl=bl)
+                gen_avg_param, train_loader, epoch, writer_dict, lr_schedulers)
 
             if epoch % args.val_freq == 0 or epoch == int(step_epochs)-1:
                 backup_param = copy_params(gen_net)
@@ -367,8 +341,11 @@ def main():
                 if fid_score < best_fid:
                     best_fid = fid_score
                     is_best = True
+                    best_is = inception_score
+                    icounter = improvement_count
                 else:
                     is_best = False
+                    icounter = icounter - 1
             else:
                 is_best = False
             e_+=1
@@ -385,11 +362,38 @@ def main():
                 'gen_optimizer': gen_optimizer.state_dict(),
                 'dis_optimizer': dis_optimizer.state_dict(),
                 'best_fid': best_fid,
+                'best_is' : best_is,
                 'path_helper': args.path_helper,
-                'gen': gen_net,
-                'dis': dis_net,
+                'gen': gen_net.module,
+                'dis': dis_net.module,
+                'fixed_z': fixed_z,
             }, is_best, args.path_helper['ckpt_path']) #step_path_dict['ckpt_path'])
             del avg_gen_net
+
+
+            # If there is no improvement for 30 epoches then load the best model
+        
+            if icounter == 0:
+                print(f'=> resuming from {args.path_helper["ckpt_path"]}')
+                checkpoint_file = os.path.join(args.path_helper['ckpt_path'],'checkpoint_best.pth')
+                assert os.path.exists(checkpoint_file)
+                checkpoint = torch.load(checkpoint_file)
+                start_epoch = checkpoint['epoch']
+                best_fid = checkpoint['best_fid']
+                best_is = checkpoint['best_is']
+                gen_net.load_state_dict(checkpoint['gen_state_dict'])
+                dis_net.load_state_dict(checkpoint['dis_state_dict'])
+                gen_optimizer.load_state_dict(checkpoint['gen_optimizer'])
+                dis_optimizer.load_state_dict(checkpoint['dis_optimizer'])
+                avg_gen_net = deepcopy(gen_net)
+                avg_gen_net.load_state_dict(checkpoint['avg_gen_state_dict'])
+                gen_avg_param = copy_params(avg_gen_net)
+                del avg_gen_net
+                print(f'Upper bound changed from {args.bu} to {args.bu*2}.')
+                args.bu = args.bu * 2
+                logger.info(f'Upper bound: {args.bu} and Lower Bound: {args.bl}.')
+                icounter = improvement_count
+                logger.info(f'Best FID score: {best_fid}. Best IS score: {best_is}.')
             
         plot_performance(performance_dict, step_path_dict['prefix'])
         

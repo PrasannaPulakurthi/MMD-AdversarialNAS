@@ -16,6 +16,7 @@ from tensorboardX import SummaryWriter
 from copy import deepcopy
 
 from decompose import get_conv2d_layers_info, get_conv2d_layer_approximation_vs_rank
+from utils.compress_utils import get_ranks_per_layer
 
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
@@ -103,12 +104,29 @@ def main():
     for name, param in gen_net.named_modules():
         print(name, isinstance(param, torch.nn.Conv2d),type(param))
     print('#############################################')
+    logger.info('Getting conv2d layers size...')
+    size=0
+    size2=0
+    size_weight = 0
+    for name, m in gen_net.named_modules():
+        if isinstance(m, torch.nn.Conv2d):
+            size+=count_parameters_in_MB(m)
+            size2+=sum(p.numel() for p in m.parameters())
+            size_weight+=m.weight.numel()
+    
+    logger.info(f'Param size of generator in Conv2d layers is: {size}MB ({size/gen_init_paramsize*100}%)')
+
+    #for name, param in gen_net.named_parameters():
+    #    print(name)
+    #quit()
     # gather conv2d layers info
     logger.info('Gathering conv2d layers info...')
     conv2d_info = get_conv2d_layers_info(gen_net)
-    for layer_name, layer_shape in conv2d_info.items():
-        logger.info(f'Layer {layer_name}: {layer_shape}')
-    
+
+    logger.info(f'INFO: Generator has {len(conv2d_info.keys())} convolution layers:')
+    for i, (layer_name, layer_shape) in enumerate(conv2d_info.items()):
+        logger.info(f'({i}) Layer {layer_name}: {layer_shape}')
+
     # Get the parameter size ratio of conv2d layers in G
     total_conv_param_ratio=0
     logger.info('Getting the parameter size ratio of conv2d layers in G...')
@@ -116,6 +134,7 @@ def main():
         for n, layer in gen_net.named_modules():
             if n == layer_name:
                 layer_paramsize = count_parameters_in_MB(layer)
+                
                 #logger.info(f'Layer {layer_name} param size = {layer_paramsize}MB')
                 #logger.info(f'Layer {layer_name} param size ratio = {100*(layer_paramsize / gen_init_paramsize)}%\n')
                 print(layer_name, 100*(layer_paramsize / gen_init_paramsize),'%')
@@ -124,6 +143,21 @@ def main():
     logger.info(f'Total conv2d layers param size ratio = {100*total_conv_param_ratio}%')
 
     print('[',",".join(conv2d_info.keys()),']')
+    for layer_name in conv2d_info.keys():
+        for n, layer in gen_net.named_modules():
+            if n == layer_name:
+                layer_paramsize = count_parameters_in_MB(layer)
+                
+                print(layer_name, 100*(layer_paramsize / gen_init_paramsize),'%')
+
+    ratios=[0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2,0.1,0.05,0.01]
+    
+    for ratio in ratios:
+        ranks = get_ranks_per_layer(gen_net, ratio, conv2d_info.keys())
+        print(ratio, ' : ', ranks)
+        
+
+
     # test
     #load_params(gen_net, gen_avg_param)
     #inception_score, std, fid_score = validate(args, fixed_z, fid_stat, gen_net, writer_dict)
