@@ -32,6 +32,27 @@ def validate_args(args):
     elif args.byratio:
         if args.compress_ratio is None or args.compress_ratio<0 or args.compress_ratio>1:
             raise ValueError('compress_ratio must be specified and in range [0,1]')
+def validate_dis_rgs(args):
+    layers = args.dis_layers
+    if layers is None:
+        print('No layers specified.')
+        args.dis_layers = []
+        args.dis_rank = []
+        return
+    
+    assert(isinstance(layers,list))
+    N = len(layers)
+
+    if args.byrank:
+        if args.dis_rank is None:
+            raise ValueError('rank must be specified when by_rank is True')
+        elif len(args.dis_rank) == 1:
+            args.dis_rank = args.dis_rank * N
+        elif len(args.dis_rank) != N:
+            raise ValueError('rank must be a list of length N')
+    elif args.byratio:
+        if args.compress_ratio is None or args.compress_ratio<0 or args.compress_ratio>1:
+            raise ValueError('compress_ratio must be specified and in range [0,1]')
     
 def set_root_dir(root_dir, exp_name):
     path_dict = {}
