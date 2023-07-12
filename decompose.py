@@ -78,6 +78,11 @@ def decompose_and_replace_conv_layer_by_name(module, layer_name, rank=None, free
                 new_layers = new_layers.to(device)
                 setattr(parent, name, new_layers)
                 break
+        elif isinstance(layer,nn.Linear) and layer_name == fullname:
+            new_layers, error, layer_compress_ratio, R = cp_decomposition_fc_layer(layer, rank)
+            new_layers = new_layers.to(device)
+            setattr(parent, name, new_layers)
+            break
         
         children = list(layer.named_children())
         if len(children)>0:
@@ -86,7 +91,47 @@ def decompose_and_replace_conv_layer_by_name(module, layer_name, rank=None, free
         for name, param in new_layers.named_parameters():
                 param.requires_grad = False
             #param.requires_grad = False
-    return  new_layers,error, layer_compress_ratio, rank
+    return  new_layers, error, layer_compress_ratio, rank
+
+def cp_decomposition_fc_layer(layer, rank, only_replace=False):
+
+    layer_total_params = sum(p.numel() for p in layer.parameters()) ##newline
+    if not only_replace:
+        cont = True
+        while cont:
+            (weights, factors), decomp_err = parafac(layer.weight.data, rank=rank, init='random', return_errors=True)
+            print('cp weights (must be 1): ', weights)
+            c_out, c_in = factors[0], factors[1]
+            if torch.isnan(c_out).any() or torch.isnan(c_in).any():
+                _logger.info(f"NaN detected in CP decomposition, trying again with rank {int(rank/2)}")
+                rank = int(rank/2)
+            else:
+                cont = False
+    else:
+        (_,factors) = random_cp(layer.weight.data.shape, rank=rank)
+        c_out, c_in = factors[0], factors[1]
+        decomp_err = None
+
+    bias_flag = layer.bias is not None
+
+    fc_1 = torch.nn.Linear(in_features=c_in.shape[0], \
+            out_features=rank, bias=False)
+
+    fc_2 = torch.nn.Linear(in_features=rank, 
+            out_features=c_out.shape[0], bias=bias_flag)
+
+    if bias_flag:
+        fc_2.bias.data = layer.bias.data
+    
+    fc_1.weight.data = torch.transpose(c_in,1,0)
+    fc_2.weight.data = c_out
+
+    new_layers = nn.Sequential(fc_1, fc_2)
+
+    layer_compressed_params= sum(p.numel() for p in new_layers.parameters()) ##newline
+    layer_compress_ratio = ((layer_total_params-layer_compressed_params)/layer_total_params)*100 ##newline
+
+    return new_layers, decomp_err, layer_compress_ratio, rank
 
 def cp_decomposition_con_layer(layer, rank):
     stride0 = layer.stride[0]
@@ -349,21 +394,22 @@ class Compression:
         else:
             freeze = False
         new_layers, approx_error, layer_compress_ratio, decomp_rank = decompose_and_replace_conv_layer_by_name(network.module, layer, rank=rank, freeze=freeze, device=args.gpu_ids[0])
+        print(new_layers)
         # calculate sizes after layer decomposition
-        step_gen_size = count_parameters_in_MB(network)
-        step_flops = print_FLOPs(network, (1, args.latent_dim), logger)
+        step_size = count_parameters_in_MB(network)
+        step_flops = 0 #print_FLOPs(network, (1, args.latent_dim), logger)
 
-        self.compression_info.add(layer, rank, step_gen_size, step_flops, layer_compress_ratio)
+        self.compression_info.add(layer, rank, step_size, step_flops, layer_compress_ratio)
         self.decomposition_info.append(layer=layer, rank=decomp_rank, approx_error=approx_error[-1])
 
         if logger is not None:
             logger.info('Layer Approximation error: {}, Layer Reduction ratio: {}'.format(approx_error[-1], layer_compress_ratio))
-            logger.info('Param size of G after decomposing %s = %fM',layer, step_gen_size)
+            logger.info('Param size of G after decomposing %s = %fM',layer, step_size)
             logger.info('FLOPs of G at step after decomposing %s = %fG', layer, step_flops)
             logger.info('Compression ratio of G at step %s  = %f', layer, self.compression_info.get_compression_ratio())
         else:
             print('Layer Approximation error: {}, Layer Reduction ratio: {}'.format(approx_error[-1], layer_compress_ratio))
-            print(f"Param size of G after decomposing {layer} = {step_gen_size}M")
+            print(f"Param size of G after decomposing {layer} = {step_size}M")
             print(f"FLOPs of G at step after decomposing {layer} = {step_flops}M")
             print(f"Compression ratio of G at step {layer}  = {self.compression_info.get_compression_ratio()}")
 

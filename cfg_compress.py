@@ -85,11 +85,15 @@ parser.add_argument('--early_stop', type=str2bool, default=False, help='use earl
 parser.add_argument('--ft-epochs', type=int, default=10)
 
 parser.add_argument('--layers', nargs='+', type=str)
+parser.add_argument('--dis_layers', nargs='+', type=str)
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument('--byratio', action='store_true')
 group.add_argument('--byrank', action='store_true')
 parser.add_argument('--rank', nargs='+', type=int, default=None)     # fixed rank (int) or list of ranks (list)
-parser.add_argument('--compress-ratio', type=float, default=None)
+parser.add_argument('--compress_ratio', type=float, default=None)
+parser.add_argument('--dis_compress_ratio', type=float, default=None)
+parser.add_argument('--dis_rank', nargs='+', type=int, default=None)
+
 
 parser.add_argument('--compress-mode', choices=['sequential', 'allatonce','grouped'], default='sequential')
 parser.add_argument('--groups', nargs='+', type=int, default=None)
@@ -98,6 +102,8 @@ parser.add_argument('--resume', action='store_true')
 
 parser.add_argument('--freeze_layers', nargs='+', type=str) # layers to freeze during training
 parser.add_argument('--eval_before_compression', action='store_true')
+
+parser.add_argument('--current', action='store_true')
 
 def parse_args():
 

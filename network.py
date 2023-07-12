@@ -175,6 +175,26 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
             writer.add_scalar('g_lr', gen_current_lr, global_steps)
             writer.add_scalar('d_lr', dis_current_lr, global_steps)
 
+        for name, param in gen_net.named_parameters():
+            layer, attr = os.path.splitext(name)
+            attr = attr[1:]
+            writer.add_histogram("{}/{}".format(layer, attr), param, global_steps)
+        for name, param in dis_net.named_parameters():
+            layer, attr = os.path.splitext(name)
+            attr = attr[1:]
+            writer.add_histogram("{}/{}".format(layer, attr), param, global_steps)
+        for name, param in gen_net.named_parameters():
+            if 'weight' in name:
+                writer.add_scalar('gen-grad-norm2-weight/{}'.format(name), param.grad.norm(), global_steps)
+            if 'bias' in name:
+                writer.add_scalar('gen-grad-norm2-bias/{}'.format(name), param.grad.norm(), global_steps)
+
+        for name, param in dis_net.named_parameters():
+            if 'weight' in name:
+                writer.add_scalar('dis-grad-norm2-weight/{}'.format(name), param.grad.norm(), global_steps)
+            if 'bias' in name:
+                writer.add_scalar('dis-grad-norm2-bias/{}'.format(name), param.grad.norm(), global_steps)
+
         # verbose
         if gen_step and iter_idx % args.print_freq == 0:
             tqdm.write(
