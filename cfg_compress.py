@@ -105,6 +105,10 @@ parser.add_argument('--eval_before_compression', action='store_true')
 
 parser.add_argument('--current', action='store_true')
 
+parser.add_argument('--no_avg_param', action='store_true', help='do not use average parameters of G in evaluation')
+parser.add_argument('--g_lr2', type=float, default=0.0002, help='learning rate for G (compressed layers)')
+parser.add_argument('--d_lr2', type=float, default=0.0002, help='learning rate for D (compressed layers)')
+
 def parse_args():
 
     opt = parser.parse_args()

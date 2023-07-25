@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 import tensorly as tl
 from tensorly.decomposition import parafac
+from tensorly.random import random_cp
 from tensorly.decomposition import tucker, partial_tucker
 from tensorly.decomposition._tucker import initialize_tucker
 import matplotlib.pyplot as plt
@@ -79,7 +80,7 @@ def decompose_and_replace_conv_layer_by_name(module, layer_name, rank=None, free
                 setattr(parent, name, new_layers)
                 break
         elif isinstance(layer,nn.Linear) and layer_name == fullname:
-            new_layers, error, layer_compress_ratio, R = cp_decomposition_fc_layer(layer, rank)
+            new_layers, error, layer_compress_ratio, rank = cp_decomposition_fc_layer(layer, rank)
             new_layers = new_layers.to(device)
             setattr(parent, name, new_layers)
             break
@@ -87,6 +88,7 @@ def decompose_and_replace_conv_layer_by_name(module, layer_name, rank=None, free
         children = list(layer.named_children())
         if len(children)>0:
             queue.extend([(name,child,layer,fullname+'.'+name) for name,child in children])
+    
     if freeze:  # freeze just the given layer
         for name, param in new_layers.named_parameters():
                 param.requires_grad = False
@@ -99,8 +101,14 @@ def cp_decomposition_fc_layer(layer, rank, only_replace=False):
     if not only_replace:
         cont = True
         while cont:
-            (weights, factors), decomp_err = parafac(layer.weight.data, rank=rank, init='random', return_errors=True)
+            #(weights, factors), decomp_err = parafac(layer.weight.data, rank=rank, init='random', return_errors=True)
+            (weights, factors), decomp_err = parafac(layer.weight.data, rank=rank, init='random', return_errors=True, normalize_factors=True, orthogonalise=True)
             print('cp weights (must be 1): ', weights)
+            const = torch.sqrt(torch.sqrt(weights)) #added to distribute the weights equally
+            factors[0] = factors[0]*const #added to distribute the weights equally
+            factors[1] = factors[1]*const #added to distribute the weights equally
+            weights = torch.ones(rank) #added to distribute the weights equally
+            #decomp_err.append(torch.norm(tl.cp_tensor.cp_to_tensor((weights, factors))-layer.weight.data)/torch.norm(layer.weight.data)) #added to distribute the weights equally
             c_out, c_in = factors[0], factors[1]
             if torch.isnan(c_out).any() or torch.isnan(c_in).any():
                 _logger.info(f"NaN detected in CP decomposition, trying again with rank {int(rank/2)}")
@@ -142,8 +150,16 @@ def cp_decomposition_con_layer(layer, rank):
     layer_total_params = sum(p.numel() for p in layer.parameters()) ##newline
     cont = True
     while cont:
-        (weights, factors), decomp_err = parafac(layer.weight.data, rank=rank, init='random', return_errors=True)
+        #(weights, factors), decomp_err = parafac(layer.weight.data, rank=rank, init='random', return_errors=True)
+        (weights, factors), decomp_err = parafac(layer.weight.data, rank=rank, init='random', return_errors=True, normalize_factors=True, orthogonalise=True)
         print('cp weights (must be 1): ', weights)
+        const = torch.sqrt(torch.sqrt(weights)) #added to distribute the weights equally
+        factors[0] = factors[0]*const #added to distribute the weights equally
+        factors[1] = factors[1]*const #added to distribute the weights equally
+        factors[2] = factors[2]*const #added to distribute the weights equally
+        factors[3] = factors[3]*const #added to distribute the weights equally
+        weights = torch.ones(rank) #added to distribute the weights equally
+        #decomp_err.append(torch.norm(tl.cp_tensor.cp_to_tensor((weights, factors))-layer.weight.data)/torch.norm(layer.weight.data)) #added to distribute the weights equally
         c_out, c_in, x, y = factors[0], factors[1], factors[2], factors[3]
         if torch.isnan(c_out).any() or torch.isnan(c_in).any() or torch.isnan(x).any() or torch.isnan(y).any():
             _logger.info(f"NaN detected in CP decomposition, trying again with rank {int(rank/2)}")

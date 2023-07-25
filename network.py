@@ -178,21 +178,21 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
         for name, param in gen_net.named_parameters():
             layer, attr = os.path.splitext(name)
             attr = attr[1:]
-            writer.add_histogram("{}/{}".format(layer, attr), param, global_steps)
+            writer.add_histogram("gen-{}/{}".format(layer, attr), param, global_steps)
         for name, param in dis_net.named_parameters():
             layer, attr = os.path.splitext(name)
             attr = attr[1:]
-            writer.add_histogram("{}/{}".format(layer, attr), param, global_steps)
+            writer.add_histogram("dis-{}/{}".format(layer, attr), param, global_steps)
         for name, param in gen_net.named_parameters():
-            if 'weight' in name:
+            if 'weight' in name and param.requires_grad:
                 writer.add_scalar('gen-grad-norm2-weight/{}'.format(name), param.grad.norm(), global_steps)
-            if 'bias' in name:
+            if 'bias' in name and param.requires_grad:
                 writer.add_scalar('gen-grad-norm2-bias/{}'.format(name), param.grad.norm(), global_steps)
 
         for name, param in dis_net.named_parameters():
-            if 'weight' in name:
+            if 'weight' in name and param.requires_grad:
                 writer.add_scalar('dis-grad-norm2-weight/{}'.format(name), param.grad.norm(), global_steps)
-            if 'bias' in name:
+            if 'bias' in name and param.requires_grad:
                 writer.add_scalar('dis-grad-norm2-bias/{}'.format(name), param.grad.norm(), global_steps)
 
         # verbose
