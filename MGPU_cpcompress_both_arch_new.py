@@ -243,6 +243,18 @@ def main():
     gen_avg_param, compression_info, decomposition_info = compress_obj.apply_compression(args, gen_net, gen_avg_param, args.layers, args.rank, logger)
     dis_avg_param, dis_compression_info, dis_decomposition_info = dis_compress_obj.apply_compression(args, dis_net, None, args.dis_layers, args.dis_rank, logger)
 
+    # Evaluate after compression
+    logger.info('------------------------------------------')
+    logger.info('Performance Evaluation After compression')
+    backup_param = copy_params(gen_net)
+    load_params(gen_net, gen_avg_param)
+    inception_score, std, fid_score = validate(args, fixed_z, fid_stat, gen_net, writer_dict)
+    logger.info(f'Inception score mean: {inception_score}, Inception score std: {std}, '
+                f'FID score: {fid_score} || after compression.')
+    load_params(gen_net, backup_param)
+    performance_store.update(fid_score, inception_score, -1)
+    performance_store.plot(args.path_helper['prefix'])
+
     # set optimizer after compression
     gen_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, gen_net.parameters()),
                                      args.g_lr, (args.beta1, args.beta2))

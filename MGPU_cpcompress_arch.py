@@ -17,7 +17,7 @@ import torch
 import os
 import numpy as np
 import torch.nn as nn
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from copy import deepcopy
 from decompose import Compression, DecompositionInfo, CompressionInfo
@@ -230,7 +230,28 @@ def main():
     # Apply compression on all layers of the model (one-shot)
     gen_avg_param, compression_info, decomposition_info = compress_obj.apply_compression(args, gen_net, gen_avg_param, args.layers, args.rank, logger)
 
+    # Evaluate after compression
+    logger.info('------------------------------------------')
+    logger.info('Performance Evaluation After compression')
+    backup_param = copy_params(gen_net)
+    load_params(gen_net, gen_avg_param)
+    inception_score, std, fid_score = validate(args, fixed_z, fid_stat, gen_net, writer_dict)
+    logger.info(f'Inception score mean: {inception_score}, Inception score std: {std}, '
+                f'FID score: {fid_score} || after compression.')
+    load_params(gen_net, backup_param)
+    performance_store.update(fid_score, inception_score, -1)
+    performance_store.plot(args.path_helper['prefix'])
+
+    # set optimizer after compression
+    gen_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, gen_net.parameters()),
+                                     args.g_lr, (args.beta1, args.beta2))
+    dis_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, dis_net.parameters()),
+                                     args.d_lr, (args.beta1, args.beta2))
+    
     for name, param in gen_net.named_parameters():
+        logger.info(f"{name}-{param.requires_grad}")
+    logger.info('------------------------------------------')
+    for name, param in dis_net.named_parameters():
         logger.info(f"{name}-{param.requires_grad}")
     
     # train loop
@@ -269,6 +290,7 @@ def main():
             'gen_optimizer': gen_optimizer.state_dict(),
             'dis_optimizer': dis_optimizer.state_dict(),
             'best_fid': best_fid,
+            'best_is': best_is,
             'path_helper': args.path_helper,
             'compression_info': compression_info,
             'decomposition_info': decomposition_info,
