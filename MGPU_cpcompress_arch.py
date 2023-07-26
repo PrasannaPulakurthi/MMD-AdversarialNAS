@@ -31,6 +31,7 @@ def main():
     args = cfg_compress.parse_args()
     validate_args(args)
     torch.cuda.manual_seed(args.random_seed)
+    print(args.freeze_layers)
 
     args.exp_name = 'CP-compress-'+args.dataset + '-'+ args.exp_name
 
