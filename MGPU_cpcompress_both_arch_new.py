@@ -243,6 +243,19 @@ def main():
     gen_avg_param, compression_info, decomposition_info = compress_obj.apply_compression(args, gen_net, gen_avg_param, args.layers, args.rank, logger)
     dis_avg_param, dis_compression_info, dis_decomposition_info = dis_compress_obj.apply_compression(args, dis_net, None, args.dis_layers, args.dis_rank, logger)
 
+    if args.reverse_g_freeze:
+        for param in gen_net.parameters():
+            param.requires_grad = not param.requires_grad
+    if args.reverse_d_freeze:
+        for param in dis_net.parameters():
+            param.requires_grad = not param.requires_grad
+            
+    for name, param in gen_net.named_parameters():
+        logger.info(f"{name}-{param.requires_grad}")
+    logger.info('------------------------------------------')
+    for name, param in dis_net.named_parameters():
+        logger.info(f"{name}-{param.requires_grad}")
+
     # Evaluate after compression
     logger.info('------------------------------------------')
     logger.info('Performance Evaluation After compression')
@@ -261,11 +274,7 @@ def main():
     dis_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, dis_net.parameters()),
                                      args.d_lr, (args.beta1, args.beta2))
     
-    for name, param in gen_net.named_parameters():
-        logger.info(f"{name}-{param.requires_grad}")
-    logger.info('------------------------------------------')
-    for name, param in dis_net.named_parameters():
-        logger.info(f"{name}-{param.requires_grad}")
+    
     
     # train loop
     for epoch in tqdm(range(int(start_epoch), int(args.max_epoch_D)), desc='total progress'):
