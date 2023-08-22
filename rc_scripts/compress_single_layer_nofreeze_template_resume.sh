@@ -33,5 +33,5 @@ for layer in ${layers[@]}; do
     layers_str+=" $layer"
 done
 
-python MGPU_cpcompress_arch.py --random_seed 12345 --gpu_ids 0 --num_workers 18 --dataset cifar10 --bottom_width 4 --img_size 32 --arch arch_cifar10 --draw_arch False --checkpoint $CHECKPOINT --genotypes_exp arch_cifar10 --compress-mode "allatonce" --latent_dim 120 --gf_dim 128 --df_dim 640 --num_eval_imgs 50000 --eval_batch_size 100 --exp_name $EXPNAME --max_epoch_G $MAXEPOCH --val_freq 5 --byrank --rank $R --layers $LAYER --gen_bs 256 --dis_bs 256 --bu $BU #--eval_before_compression
+python MGPU_cpcompress_arch.py --random_seed 12345 --gpu_ids 0 --num_workers 18 --dataset cifar10 --bottom_width 4 --img_size 32 --arch arch_cifar10 --draw_arch False --checkpoint $CHECKPOINT --genotypes_exp arch_cifar10 --compress-mode "allatonce" --latent_dim 120 --gf_dim 128 --df_dim 640 --num_eval_imgs 50000 --eval_batch_size 100 --exp_name $EXPNAME --max_epoch_G $MAXEPOCH --val_freq 5 --byrank --gen_bs 256 --dis_bs 256 --bu $BU --eval_before_compression --resume
 

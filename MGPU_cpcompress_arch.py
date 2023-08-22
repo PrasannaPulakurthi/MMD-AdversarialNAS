@@ -229,9 +229,23 @@ def main():
         performance_store.plot(args.path_helper['prefix'])
 
     # Apply compression on all layers of the model (one-shot)
+    removed_params = {}
+    for name, param in gen_net.named_parameters():
+        if any([layer in name for layer in args.layers]):
+            removed_params[name]=param
+    print('Removed params:', removed_params.keys())
+
     gen_avg_param, compression_info, decomposition_info = compress_obj.apply_compression(args, gen_net, gen_avg_param, args.layers, args.rank, logger)
 
-    if args.reverse_g_freeze:
+    if args.freeze_before_compressed:
+        logger.info(f'freezing the layers before {args.layers[0]}...')
+        assert(len(args.layers) == 1)
+        for name, param in gen_net.named_parameters():
+            if args.layers[0] in name:
+                break
+            param.requires_grad = False
+
+    elif args.reverse_g_freeze:
         for param in gen_net.parameters():
             param.requires_grad = not param.requires_grad
 
@@ -240,7 +254,6 @@ def main():
     logger.info('------------------------------------------')
     for name, param in dis_net.named_parameters():
         logger.info(f"{name}-{param.requires_grad}")
-
     # Evaluate after compression
     logger.info('------------------------------------------')
     logger.info('Performance Evaluation After compression')
@@ -254,17 +267,58 @@ def main():
     performance_store.plot(args.path_helper['prefix'])
 
     # set optimizer after compression
-    gen_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, gen_net.parameters()),
-                                     args.g_lr, (args.beta1, args.beta2))
-    dis_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, dis_net.parameters()),
-                                     args.d_lr, (args.beta1, args.beta2))
+    #gen_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, gen_net.parameters()),
+    #                                 args.g_lr, (args.beta1, args.beta2))
+    #dis_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, dis_net.parameters()),
+    #                                 args.d_lr, (args.beta1, args.beta2))
+    old_params = []
+    old_param_names = []
+    new_params = []
+    new_param_names = []
+    for name, param in gen_net.named_parameters():
+        if param in gen_optimizer.state.keys():
+            old_params.append(param)
+            old_param_names.append(name)
+        else:
+            new_params.append(param)
+            new_param_names.append(name)
+    logger.info(f'old_params: {old_param_names}')
+    logger.info(f'new_params: {new_param_names}')
+    #quit()
+    new_gen_optimizer = torch.optim.Adam(old_params, args.g_lr, (args.beta1, args.beta2))
+    new_gen_optimizer.add_param_group({'params': new_params, 'lr': 1e-5, 'betas': (args.beta1, args.beta2)})
+    new_dis_optimizer = torch.optim.Adam(dis_net.parameters(), args.d_lr, (args.beta1, args.beta2))
+    for name, param in gen_net.named_parameters():
+        if param in gen_optimizer.state.keys():
+            new_gen_optimizer.state[param] = gen_optimizer.state[param]
+            new_gen_optimizer.state[param]['exp_avg'] = gen_optimizer.state[param]['exp_avg'].clone()
+            new_gen_optimizer.state[param]['exp_avg_sq'] = gen_optimizer.state[param]['exp_avg_sq'].clone()
+            print(new_gen_optimizer.state[param]['exp_avg'].shape, param.shape)
+        else:
+            if 'bias' in name:
+                name2 = name.rsplit('.',1)[0].rsplit('.',1)[0]+'.'+name.rsplit('.',1)[1]
+                for n_, p_ in removed_params.items():
+                    if n_ == name2:
+                        new_gen_optimizer.state[param] = gen_optimizer.state[p_]
+                        new_gen_optimizer.state[param]['exp_avg'] = gen_optimizer.state[p_]['exp_avg'].clone()
+                        new_gen_optimizer.state[param]['exp_avg_sq'] = gen_optimizer.state[p_]['exp_avg_sq'].clone()
+                        print(new_gen_optimizer.state[param]['exp_avg'].shape, param.shape)
+                        
+
+
+        print(name, param in gen_optimizer.state.keys())
+
+    #gen_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, gen_net.parameters()),
+    #                                 args.g_lr, momentum=0.9)
+    #dis_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, dis_net.parameters()),
+    #                                 args.d_lr, momentum=0.9)
     
     
     
     # train loop
     for epoch in tqdm(range(int(start_epoch), int(args.max_epoch_D)), desc='total progress'):
         lr_schedulers = (gen_scheduler, dis_scheduler) if args.lr_decay else None
-        train(args, gen_net, dis_net, gen_optimizer, dis_optimizer,
+        train(args, gen_net, dis_net, new_gen_optimizer, new_dis_optimizer,
               gen_avg_param, train_loader, epoch, writer_dict, lr_schedulers)
 
         if epoch % args.val_freq == 0 or epoch == int(args.max_epoch_D)-1:

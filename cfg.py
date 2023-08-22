@@ -72,7 +72,7 @@ def parse_args():
     parser.add_argument('--amending_coefficient', type=float, default=0, help='coeff of Amended Gradient Estimation trick')
     parser.add_argument('--draw_arch', type=str2bool, default=True, help='visualize the searched architecture or not')
     parser.add_argument('--early_stop', type=str2bool, default=False, help='use early stop strategy or not')
-
+    
     # parser.add_argument('--derived_start_epoch', type=int, default=0, help='')
     # parser.add_argument('--derived_max_epoch', type=int, default=None, help='')
     # parser.add_argument('--derived_epoch_interval', type=int, default=None, help='')

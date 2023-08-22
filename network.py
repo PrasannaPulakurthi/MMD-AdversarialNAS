@@ -164,17 +164,17 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
             writer.add_scalar('g_loss', g_loss.item(), global_steps)
             gen_step += 1
 
-        gen_current_lr = gen_optimizer.param_groups[0]['lr']
-        dis_current_lr = dis_optimizer.param_groups[0]['lr']
-        try:
+        #gen_current_lr = gen_optimizer.param_groups[0]['lr']
+        #dis_current_lr = dis_optimizer.param_groups[0]['lr']
+        #try:
             #print('lr.item(): gen %.6f dis %.6f' % (gen_current_lr, dis_current_lr))
-            writer.add_scalar('g_lr', gen_current_lr.item(), global_steps)
-            writer.add_scalar('d_lr', dis_current_lr.item(), global_steps)
-        except:
+        #    writer.add_scalar('g_lr', gen_current_lr.item(), global_steps)
+        #    writer.add_scalar('d_lr', dis_current_lr.item(), global_steps)
+        #except:
             #print('lr: gen %.6f dis %.6f' % (gen_current_lr, dis_current_lr))
-            writer.add_scalar('g_lr', gen_current_lr, global_steps)
-            writer.add_scalar('d_lr', dis_current_lr, global_steps)
-
+        #    writer.add_scalar('g_lr', gen_current_lr, global_steps)
+        #    writer.add_scalar('d_lr', dis_current_lr, global_steps)
+        """
         for name, param in gen_net.named_parameters():
             layer, attr = os.path.splitext(name)
             attr = attr[1:]
@@ -194,7 +194,7 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
                 writer.add_scalar('dis-grad-norm2-weight/{}'.format(name), param.grad.norm(), global_steps)
             if 'bias' in name and param.requires_grad:
                 writer.add_scalar('dis-grad-norm2-bias/{}'.format(name), param.grad.norm(), global_steps)
-
+        """
         # verbose
         if gen_step and iter_idx % args.print_freq == 0:
             tqdm.write(

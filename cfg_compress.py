@@ -101,6 +101,9 @@ parser.add_argument('--groups', nargs='+', type=int, default=None)
 parser.add_argument('--resume', action='store_true')
 
 parser.add_argument('--freeze_layers', nargs='+', type=str) # layers to freeze during training
+parser.add_argument('--reverse_g_freeze', action='store_true') # freeze all layers except those specified in freeze_layers
+parser.add_argument('--freeze_before_compressed', action='store_true')
+parser.add_argument('--reverse_d_freeze', action='store_true') # freeze all layers except those specified in freeze_layers
 parser.add_argument('--eval_before_compression', action='store_true')
 
 parser.add_argument('--current', action='store_true')

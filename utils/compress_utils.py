@@ -32,6 +32,8 @@ def validate_args(args):
     elif args.byratio:
         if args.compress_ratio is None or args.compress_ratio<0 or args.compress_ratio>1:
             raise ValueError('compress_ratio must be specified and in range [0,1]')
+    if args.freeze_before_compressed and len(args.layers) != 1:
+        raise ValueError('freeze_before_compressed can only be used with a single layer')
 def validate_dis_rgs(args):
     layers = args.dis_layers
     if layers is None:
