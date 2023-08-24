@@ -326,7 +326,7 @@ def main():
             load_params(gen_net, gen_avg_param)
             inception_score, std, fid_score = validate(args, fixed_z, fid_stat, gen_net, writer_dict)
             logger.info(f'Inception score mean: {inception_score}, Inception score std: {std}, '
-                        f'FID score: {fid_score} || @ epoch {epoch}.')
+                        f'FID score: {fid_score} || @ epoch {epoch}. || Best FID score: {best_fid}')
             load_params(gen_net, backup_param)
             performance_store.update(fid_score, inception_score, epoch)
             performance_store.plot(args.path_helper['prefix'])

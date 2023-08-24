@@ -89,7 +89,7 @@ def _init_inception():
                 shape = o.get_shape()
                 if shape._dims != []:
                     # shape = [s.value for s in shape]
-                    shape = [100, 32, 32, 3]
+                    shape = [100, 48, 48, 3]
                     new_shape = []
                     for j, s in enumerate(shape):
                         if s == 1 and j == 0:
