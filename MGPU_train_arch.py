@@ -236,6 +236,8 @@ def main():
             del avg_gen_net
             print(f'Upper bound changed from {args.bu} to {args.bu*2}.')
             args.bu = args.bu * 2
+            if args.bu > 32:
+                args.bu = 32
             logger.info(f'Upper bound: {args.bu} and Lower Bound: {args.bl}.')
             icounter = improvement_count
             logger.info(f'Best FID score: {best_fid}. Best IS score: {best_is}.')
