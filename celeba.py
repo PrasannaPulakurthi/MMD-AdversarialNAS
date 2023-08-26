@@ -23,6 +23,7 @@ class CelebA(Dataset):
         private helper for setting up the files_list
         :return: files => list of paths of files
         """
+        self.data_dir = os.path.join(self.data_dir,'celeba')
         file_names = os.listdir(self.data_dir)
         files = []  # initialize to empty list
 
@@ -30,7 +31,7 @@ class CelebA(Dataset):
             possible_file = os.path.join(self.data_dir, file_name)
             if os.path.isfile(possible_file):
                 files.append(possible_file)
-                
+        print(len(files))
         # return the files list
         return files
 
@@ -43,7 +44,6 @@ class CelebA(Dataset):
         # define the state of the object
         self.data_dir = root
         self.transform = transform
-
         # setup the files for reading
         self.files = self.__setup_files()
 

@@ -28,7 +28,7 @@ class ImageDataset(object):
         elif args.dataset.lower() == 'celeba':
             Dt = CelebA
             transform = transforms.Compose([
-                transforms.Resize(args.img_size),
+                transforms.Resize(size=(args.img_size, args.img_size)),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
@@ -48,29 +48,18 @@ class ImageDataset(object):
                 num_workers=args.num_workers, pin_memory=True)
 
             self.test = self.valid
-        elif args.dataset.lower() == 'celeba': 
-                        
-            train_dataset = Dt(root=args.data_path, transform=transform)
-            val_dataset = Dt(root=args.data_path, transform=transform)
-            
-            train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
-            val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset)
-            self.train_sampler = train_sampler
+        elif args.dataset.lower() == 'celeba':   
             self.train = torch.utils.data.DataLoader(
-                train_dataset,
-                batch_size=args.dis_batch_size, shuffle=(train_sampler is None),
-                num_workers=args.num_workers, pin_memory=True, drop_last=True, sampler=train_sampler)
+                Dt(root=args.data_path, transform=transform),
+                batch_size=args.dis_bs, shuffle=True,
+                num_workers=args.num_workers, pin_memory=True, drop_last=True)
 
             self.valid = torch.utils.data.DataLoader(
-                val_dataset,
-                batch_size=args.dis_batch_size, shuffle=False,
-                num_workers=args.num_workers, pin_memory=True, sampler=val_sampler)
+                Dt(root=args.data_path, transform=transform),
+                batch_size=args.dis_bs, shuffle=False,
+                num_workers=args.num_workers, pin_memory=True)
 
-            self.test = torch.utils.data.DataLoader(
-                val_dataset,
-                batch_size=args.dis_batch_size, shuffle=False,
-                num_workers=args.num_workers, pin_memory=True, sampler=val_sampler)
-            
+            self.test = self.valid     
         else:
             self.train = torch.utils.data.DataLoader(
                 Dt(root=args.data_path, train=True, transform=transform, download=True),
