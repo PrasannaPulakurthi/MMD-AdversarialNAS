@@ -12,8 +12,10 @@ from utils.flop_benchmark import print_FLOPs
 import torch
 import os
 import numpy as np
-from torch.utils.tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 from copy import deepcopy
+
+from decompose import get_conv2d_layers_info, get_conv2d_layer_approximation_vs_rank
 
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
@@ -22,6 +24,8 @@ torch.backends.cudnn.benchmark = True
 def main():
     args = cfg.parse_args()
     torch.cuda.manual_seed(args.random_seed)
+
+    args.exp_name = 'layersinfo-'+args.exp_name
 
     # set visible GPU ids
     if len(args.gpu_ids) > 0:
@@ -50,8 +54,7 @@ def main():
     # import network from genotype
     basemodel_gen = eval('archs.' + args.arch + '.Generator')(args, genotype_G)
     gen_net = torch.nn.DataParallel(basemodel_gen, device_ids=args.gpu_ids).cuda(args.gpu_ids[0])
-    basemodel_dis = eval('archs.' + args.arch + '.Discriminator')(args)
-    dis_net = torch.nn.DataParallel(basemodel_dis, device_ids=args.gpu_ids).cuda(args.gpu_ids[0])
+    
 
     # fid stat
     if args.dataset.lower() == 'cifar10':
@@ -63,23 +66,23 @@ def main():
     assert os.path.exists(fid_stat)
 
     # set writer
-    print(f'=> resuming from {args.checkpoint}')
-    assert os.path.exists(os.path.join('exps', args.checkpoint))
-    checkpoint_file = os.path.join('exps', args.checkpoint, 'Model', 'checkpoint_best.pth')
-    assert os.path.exists(checkpoint_file)
-    checkpoint = torch.load(checkpoint_file)
-    epoch = checkpoint['epoch'] - 1
-    gen_net.load_state_dict(checkpoint['gen_state_dict'])
-    dis_net.load_state_dict(checkpoint['dis_state_dict'])
+    #print(f'=> resuming from {args.checkpoint}')
+    #assert os.path.exists(os.path.join('exps', args.checkpoint))
+    #checkpoint_file = os.path.join('exps', args.checkpoint, 'Model', 'checkpoint_best.pth')
+    #assert os.path.exists(checkpoint_file)
+    #heckpoint = torch.load(checkpoint_file)
+    #epoch = checkpoint['epoch'] - 1
+    #gen_net.load_state_dict(checkpoint['gen_state_dict'])
+    
     avg_gen_net = deepcopy(gen_net)
-    avg_gen_net.load_state_dict(checkpoint['avg_gen_state_dict'])
+    #avg_gen_net.load_state_dict(checkpoint['avg_gen_state_dict'])
     gen_avg_param = copy_params(avg_gen_net)
-    del avg_gen_net
+    #del avg_gen_net
     assert args.exp_name
     args.path_helper = set_log_dir('exps', args.exp_name)
     logger = create_logger(args.path_helper['log_path'])
-    logger.info(f'=> loaded checkpoint {checkpoint_file} (epoch {epoch})')
-    
+    #logger.info(f'=> loaded checkpoint {checkpoint_file} (epoch {epoch})')
+    epoch=0
     logger.info(args)
     writer_dict = {
         'writer': SummaryWriter(args.path_helper['log_path']),
@@ -87,23 +90,45 @@ def main():
     }
     
     # model size
-    logger.info('Param size of G = %fMB', count_parameters_in_MB(gen_net))
-    logger.info('Param size of D = %fMB', count_parameters_in_MB(dis_net))
+    gen_init_paramsize = count_parameters_in_MB(gen_net)
+    logger.info('Param size of G = %fMB', gen_init_paramsize)
     print_FLOPs(basemodel_gen, (1, args.latent_dim), logger)
-    print_FLOPs(basemodel_dis, (1, 3, args.img_size, args.img_size), logger)
     
     # for visualization
     if args.draw_arch:
         from utils.genotype import draw_graph_G
         draw_graph_G(genotype_G, save=True, file_path=os.path.join(args.path_helper['graph_vis_path'], 'latest_G'))
     fixed_z = torch.cuda.FloatTensor(np.random.normal(0, 1, (100, args.latent_dim)))
-    
-    # test
-    load_params(gen_net, gen_avg_param)
-    inception_score, std, fid_score = validate(args, fixed_z, fid_stat, gen_net, writer_dict)
-    logger.info(f'Inception score mean: {inception_score}, Inception score std: {std}, '
-                f'FID score: {fid_score} || @ epoch {epoch}.')
 
+    for name, param in gen_net.named_modules():
+        print(name, isinstance(param, torch.nn.Conv2d),type(param))
+    print('#############################################')
+    # gather conv2d layers info
+    logger.info('Gathering conv2d layers info...')
+    conv2d_info = get_conv2d_layers_info(gen_net)
+    for layer_name, layer_shape in conv2d_info.items():
+        logger.info(f'Layer {layer_name}: {layer_shape}')
+    
+    # Get the parameter size ratio of conv2d layers in G
+    total_conv_param_ratio=0
+    logger.info('Getting the parameter size ratio of conv2d layers in G...')
+    for layer_name, _ in conv2d_info.items():
+        for n, layer in gen_net.named_modules():
+            if n == layer_name:
+                layer_paramsize = count_parameters_in_MB(layer)
+                #logger.info(f'Layer {layer_name} param size = {layer_paramsize}MB')
+                #logger.info(f'Layer {layer_name} param size ratio = {100*(layer_paramsize / gen_init_paramsize)}%\n')
+                print(layer_name, 100*(layer_paramsize / gen_init_paramsize),'%')
+                total_conv_param_ratio += layer_paramsize / gen_init_paramsize
+                break
+    logger.info(f'Total conv2d layers param size ratio = {100*total_conv_param_ratio}%')
+
+    print('[',",".join(conv2d_info.keys()),']')
+    # test
+    #load_params(gen_net, gen_avg_param)
+    #inception_score, std, fid_score = validate(args, fixed_z, fid_stat, gen_net, writer_dict)
+    #logger.info(f'Inception score mean: {inception_score}, Inception score std: {std}, '
+    #            f'FID score: {fid_score} || @ epoch {epoch}.')
 
 if __name__ == '__main__':
     main()

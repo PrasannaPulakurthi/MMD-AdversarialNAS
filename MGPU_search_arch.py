@@ -17,7 +17,7 @@ import torch
 import os
 import numpy as np
 import torch.nn as nn
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from copy import deepcopy
 import torch.nn.functional as F

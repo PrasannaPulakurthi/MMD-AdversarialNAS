@@ -48,6 +48,9 @@ def parse_args():
     parser.add_argument('--init_type', type=str, default='normal',
                         choices=['normal', 'orth', 'xavier_uniform', 'false'],
                         help='init type')
+    parser.add_argument('--bu', type=float, default=4, help='Upper bound on the RBF Kernel')
+    parser.add_argument('--bl', type=float, default=1/4, help='Lower bound on the RBF Kernel')
+    
     parser.add_argument('--d_spectral_norm', type=str2bool, default=True,
                         help='add spectral_norm on discriminator or not')
     parser.add_argument('--g_spectral_norm', type=str2bool, default=False,
@@ -69,7 +72,7 @@ def parse_args():
     parser.add_argument('--amending_coefficient', type=float, default=0, help='coeff of Amended Gradient Estimation trick')
     parser.add_argument('--draw_arch', type=str2bool, default=True, help='visualize the searched architecture or not')
     parser.add_argument('--early_stop', type=str2bool, default=False, help='use early stop strategy or not')
-
+    
     # parser.add_argument('--derived_start_epoch', type=int, default=0, help='')
     # parser.add_argument('--derived_max_epoch', type=int, default=None, help='')
     # parser.add_argument('--derived_epoch_interval', type=int, default=None, help='')

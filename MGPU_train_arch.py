@@ -16,7 +16,7 @@ import torch
 import os
 import numpy as np
 import torch.nn as nn
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from copy import deepcopy
 
@@ -116,6 +116,7 @@ def main():
     gen_avg_param = copy_params(gen_net)
     start_epoch = 0
     best_fid = 1e4
+    best_is = 0
 
     # set writer
     if args.checkpoint:
@@ -167,6 +168,11 @@ def main():
     
     fixed_z = torch.cuda.FloatTensor(np.random.normal(0, 1, (100, args.latent_dim)))
     
+    improvement_count = 6
+    icounter = improvement_count
+    logger.info(f'Upper bound: {args.bu} and Lower Bound: {args.bl}.')
+    logger.info(f'Best FID score: {best_fid}. Best IS score: {best_is}.')
+
     # train loop
     for epoch in tqdm(range(int(start_epoch), int(args.max_epoch_D)), desc='total progress'):
         lr_schedulers = (gen_scheduler, dis_scheduler) if args.lr_decay else None
@@ -182,9 +188,12 @@ def main():
             load_params(gen_net, backup_param)
             if fid_score < best_fid:
                 best_fid = fid_score
+                best_is = inception_score
                 is_best = True
+                icounter = improvement_count
             else:
                 is_best = False
+                icounter = icounter - 1
         else:
             is_best = False
         
@@ -200,10 +209,34 @@ def main():
             'gen_optimizer': gen_optimizer.state_dict(),
             'dis_optimizer': dis_optimizer.state_dict(),
             'best_fid': best_fid,
+            'best_is' : best_is,
             'path_helper': args.path_helper
         }, is_best, args.path_helper['ckpt_path'])
         del avg_gen_net
 
-
+        # If there is no improvement for 30 epoches then load the best model
+        
+        if icounter == 0:
+            print(f'=> resuming from {args.path_helper["ckpt_path"]}')
+            checkpoint_file = os.path.join(args.path_helper['ckpt_path'],'checkpoint_best.pth')
+            assert os.path.exists(checkpoint_file)
+            checkpoint = torch.load(checkpoint_file)
+            start_epoch = checkpoint['epoch']
+            best_fid = checkpoint['best_fid']
+            gen_net.load_state_dict(checkpoint['gen_state_dict'])
+            dis_net.load_state_dict(checkpoint['dis_state_dict'])
+            gen_optimizer.load_state_dict(checkpoint['gen_optimizer'])
+            dis_optimizer.load_state_dict(checkpoint['dis_optimizer'])
+            avg_gen_net = deepcopy(gen_net)
+            avg_gen_net.load_state_dict(checkpoint['avg_gen_state_dict'])
+            gen_avg_param = copy_params(avg_gen_net)
+            del avg_gen_net
+            print(f'Upper bound changed from {args.bu} to {args.bu*2}.')
+            args.bu = args.bu * 2
+            logger.info(f'Upper bound: {args.bu} and Lower Bound: {args.bl}.')
+            icounter = improvement_count
+            logger.info(f'Best FID score: {best_fid}. Best IS score: {best_is}.')
+        
+        
 if __name__ == '__main__':
     main()

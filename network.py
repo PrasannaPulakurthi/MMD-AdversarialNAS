@@ -22,11 +22,11 @@ logger = logging.getLogger(__name__)
 
 
 class MMD_loss(nn.Module):
-    def __init__(self):
+    def __init__(self, bu = 4, bl = 1/4):
       super(MMD_loss, self).__init__()
       self.fix_sigma = 1
-      self.bl = 1/128
-      self.bu = 128
+      self.bl = bl
+      self.bu = bu
       return
   
     def phi(self,x,y):
@@ -53,8 +53,8 @@ class MMD_loss(nn.Module):
         YY_l = torch.exp(-alpha*torch.max(L2_YY,bl))
         XX = (1/(m*(m-1))) * (torch.sum(XX_u) - torch.sum(torch.diagonal(XX_u, 0)))
         YY = (1/(m*(m-1))) * (torch.sum(YY_l) - torch.sum(torch.diagonal(YY_l, 0)))
-        loss_b = torch.mean(source.square()) + torch.mean(target.square())
-        lossD = XX - YY + 0.001*loss_b
+        # loss_b = torch.mean(source.square()) + torch.mean(target.square())
+        lossD = XX - YY # + 0.001*loss_b
         # print(XX, YY, loss_b)
         return lossD
       elif type == "gen":
@@ -74,31 +74,36 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
           writer_dict, lr_schedulers, architect_gen=None, architect_dis=None):
     writer = writer_dict['writer']
     gen_step = 0
-
-    mmd_rep_loss = MMD_loss()
+    bu = args.bu
+    bl = args.bl
+    mmd_rep_loss = MMD_loss(bu, bl)
     # train mode
     gen_net = gen_net.train()
     dis_net = dis_net.train()
-
+    
     for iter_idx, (imgs, _) in enumerate(tqdm(train_loader)):
         global_steps = writer_dict['train_global_steps']
 
         real_imgs = imgs.type(torch.cuda.FloatTensor)
-        real_imgs_w = real_imgs[:imgs.shape[0] // 2]
-        real_imgs_arch = real_imgs[imgs.shape[0] // 2:]
 
-        # sample noise
-        z = torch.cuda.FloatTensor(np.random.normal(0, 1, (imgs.shape[0] // 2, args.latent_dim)))
 
         # search arch of D
-        if architect_dis:
+        if architect_dis:  
+            real_imgs_w = real_imgs[:imgs.shape[0] // 2]
+            real_imgs_arch = real_imgs[imgs.shape[0] // 2:]
             # sample noise
             search_z = torch.cuda.FloatTensor(np.random.normal(0, 1, (imgs.shape[0] // 2, args.latent_dim)))
             if args.amending_coefficient:
                 architect_dis.step(dis_net, real_imgs_arch, gen_net, search_z, real_imgs_train=real_imgs_w, train_z=z, eta=args.amending_coefficient)
             else:
                 architect_dis.step(dis_net, real_imgs_arch, gen_net, search_z)
-
+            # sample noise
+            z = torch.cuda.FloatTensor(np.random.normal(0, 1, (imgs.shape[0] // 2, args.latent_dim)))
+        else:
+            real_imgs_w = real_imgs
+            # sample noise
+            z = torch.cuda.FloatTensor(np.random.normal(0, 1, (imgs.shape[0], args.latent_dim)))
+            
         # train weights of D
         dis_optimizer.zero_grad()
         real_validity = dis_net(real_imgs_w)
@@ -159,6 +164,37 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
             writer.add_scalar('g_loss', g_loss.item(), global_steps)
             gen_step += 1
 
+        #gen_current_lr = gen_optimizer.param_groups[0]['lr']
+        #dis_current_lr = dis_optimizer.param_groups[0]['lr']
+        #try:
+            #print('lr.item(): gen %.6f dis %.6f' % (gen_current_lr, dis_current_lr))
+        #    writer.add_scalar('g_lr', gen_current_lr.item(), global_steps)
+        #    writer.add_scalar('d_lr', dis_current_lr.item(), global_steps)
+        #except:
+            #print('lr: gen %.6f dis %.6f' % (gen_current_lr, dis_current_lr))
+        #    writer.add_scalar('g_lr', gen_current_lr, global_steps)
+        #    writer.add_scalar('d_lr', dis_current_lr, global_steps)
+        """
+        for name, param in gen_net.named_parameters():
+            layer, attr = os.path.splitext(name)
+            attr = attr[1:]
+            writer.add_histogram("gen-{}/{}".format(layer, attr), param, global_steps)
+        for name, param in dis_net.named_parameters():
+            layer, attr = os.path.splitext(name)
+            attr = attr[1:]
+            writer.add_histogram("dis-{}/{}".format(layer, attr), param, global_steps)
+        for name, param in gen_net.named_parameters():
+            if 'weight' in name and param.requires_grad:
+                writer.add_scalar('gen-grad-norm2-weight/{}'.format(name), param.grad.norm(), global_steps)
+            if 'bias' in name and param.requires_grad:
+                writer.add_scalar('gen-grad-norm2-bias/{}'.format(name), param.grad.norm(), global_steps)
+
+        for name, param in dis_net.named_parameters():
+            if 'weight' in name and param.requires_grad:
+                writer.add_scalar('dis-grad-norm2-weight/{}'.format(name), param.grad.norm(), global_steps)
+            if 'bias' in name and param.requires_grad:
+                writer.add_scalar('dis-grad-norm2-bias/{}'.format(name), param.grad.norm(), global_steps)
+        """
         # verbose
         if gen_step and iter_idx % args.print_freq == 0:
             tqdm.write(
