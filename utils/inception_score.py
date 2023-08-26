@@ -23,42 +23,8 @@ config = tf.compat.v1.ConfigProto()
 config.gpu_options.allow_growth = True
 
 
-# Call this function with list of images. Each of elements should be a
-# numpy array with values ranging from 0 to 255.
-def get_inception_score(images, splits=10):
-    assert (type(images) == list)
-    assert (type(images[0]) == np.ndarray)
-    assert (len(images[0].shape) == 3)
-    assert (np.max(images[0]) > 10)
-    assert (np.min(images[0]) >= 0.0)
-    inps = []
-    for img in images:
-        img = img.astype(np.float32)
-        inps.append(np.expand_dims(img, 0))
-    bs = 100
-    with tf.Session(config=config) as sess:
-        preds = []
-        n_batches = int(math.ceil(float(len(inps)) / float(bs)))
-        for i in tqdm(range(n_batches), desc="Calculate inception score"):
-            sys.stdout.flush()
-            inp = inps[(i * bs):min((i + 1) * bs, len(inps))]
-            inp = np.concatenate(inp, 0)
-            pred = sess.run(softmax, {'ExpandDims:0': inp})
-            preds.append(pred)
-        preds = np.concatenate(preds, 0)
-        # scipy.io.savemat('test.mat', {'data': preds})
-        scores = []
-        for i in range(splits):
-            part = preds[(i * preds.shape[0] // splits):((i + 1) * preds.shape[0] // splits), :]
-            kl = part * (np.log(part) - np.log(np.expand_dims(np.mean(part, 0), 0)))
-            kl = np.mean(np.sum(kl, 1))
-            scores.append(np.exp(kl))
-        sess.close()
-    return np.mean(scores), np.std(scores)
-
-
 # This function is called automatically.
-def _init_inception():
+def _init_inception(shape_in):
     global softmax
     if not os.path.exists(MODEL_DIR):
         os.makedirs(MODEL_DIR)
@@ -89,7 +55,7 @@ def _init_inception():
                 shape = o.get_shape()
                 if shape._dims != []:
                     # shape = [s.value for s in shape]
-                    shape = [100, 32, 32, 3]
+                    shape = shape_in
                     new_shape = []
                     for j, s in enumerate(shape):
                         if s == 1 and j == 0:
@@ -101,4 +67,37 @@ def _init_inception():
         logits = tf.matmul(tf.squeeze(pool3, [1, 2]), w)
         softmax = tf.nn.softmax(logits)
         sess.close()
+
+# Call this function with list of images. Each of elements should be a
+# numpy array with values ranging from 0 to 255.
+def get_inception_score(images, batch_size=100, splits=10):
+    assert (type(images) == list)
+    assert (type(images[0]) == np.ndarray)
+    assert (len(images[0].shape) == 3)
+    assert (np.max(images[0]) > 10)
+    assert (np.min(images[0]) >= 0.0)
+    inps = []
+    for img in images:
+        img = img.astype(np.float32)
+        inps.append(np.expand_dims(img, 0))
+    bs = 100
+    with tf.Session(config=config) as sess:
+        preds = []
+        n_batches = int(math.ceil(float(len(inps)) / float(bs)))
+        for i in tqdm(range(n_batches), desc="Calculate inception score"):
+            sys.stdout.flush()
+            inp = inps[(i * bs):min((i + 1) * bs, len(inps))]
+            inp = np.concatenate(inp, 0)
+            pred = sess.run(softmax, {'ExpandDims:0': inp})
+            preds.append(pred)
+        preds = np.concatenate(preds, 0)
+        # scipy.io.savemat('test.mat', {'data': preds})
+        scores = []
+        for i in range(splits):
+            part = preds[(i * preds.shape[0] // splits):((i + 1) * preds.shape[0] // splits), :]
+            kl = part * (np.log(part) - np.log(np.expand_dims(np.mean(part, 0), 0)))
+            kl = np.mean(np.sum(kl, 1))
+            scores.append(np.exp(kl))
+        sess.close()
+    return np.mean(scores), np.std(scores)
 

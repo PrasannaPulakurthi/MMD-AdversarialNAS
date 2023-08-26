@@ -45,7 +45,7 @@ def create_inception_graph(pth):
 
 # code for handling inception net derived from
 #   https://github.com/openai/improved-gan/blob/master/inception_score/model.py
-def _get_inception_layer(sess, batch_size):
+def _get_inception_layer(sess, shape_in):
     """Prepares inception net for batched usage and returns pool_3 layer. """
     layername = 'pool_3:0'
     pool3 = sess.graph.get_tensor_by_name(layername)
@@ -55,7 +55,7 @@ def _get_inception_layer(sess, batch_size):
             shape = o.get_shape()
             if shape._dims != []:
                 # shape = [s.value for s in shape]
-                shape = [batch_size, 32, 32, 3]
+                shape = shape_in
                 new_shape = []
                 for j, s in enumerate(shape):
                     if s == 1 and j == 0:
@@ -84,8 +84,11 @@ def get_activations(images, sess, batch_size=100, verbose=False):
     -- A numpy array of dimension (num images, 2048) that contains the
        activations of the given tensor when feeding inception with the query tensor.
     """
-    inception_layer = _get_inception_layer(sess, batch_size)
     d0 = images.shape[0]
+    d1 = images.shape[1]
+    shape = [batch_size, d1, d1, 3]
+    inception_layer = _get_inception_layer(sess, shape)
+    
     if batch_size > d0:
         print("warning: batch size is bigger than the data size. setting batch size to data size")
         batch_size = d0
