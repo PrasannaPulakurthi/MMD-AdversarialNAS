@@ -5,7 +5,7 @@
 import copy, torch
 
 
-def print_FLOPs(model, shape, logger):
+def print_FLOPs(model, shape, logger=None):
   
   model = copy.deepcopy(model)
   
@@ -18,8 +18,10 @@ def print_FLOPs(model, shape, logger):
   _ = model(cache_inputs)
   FLOPs = compute_average_flops_cost(model) / 1e6
 
-  logger.info('FLOPs : {:} MB'.format(FLOPs))
+  if logger is not None:
+    logger.info('FLOPs : {:} MB'.format(FLOPs))
   torch.cuda.empty_cache()
+  return FLOPs
 
 
 # ---- Public functions
