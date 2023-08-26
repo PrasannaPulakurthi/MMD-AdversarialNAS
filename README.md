@@ -29,7 +29,7 @@
 
 Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6Y-btreBtyVZ-kdGTIZgLTjsv7H4Pd?usp=sharing).
 
-1. Download the pretrained models to ./exp
+1. Download the pretrained models to ./exps
     
 2. Download the pre-calculated statistics to ./fid_stat for calculating the FID.
 
