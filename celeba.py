@@ -23,7 +23,6 @@ class CelebA(Dataset):
         private helper for setting up the files_list
         :return: files => list of paths of files
         """
-        self.data_dir = os.path.join(self.data_dir,'celeba')
         file_names = os.listdir(self.data_dir)
         files = []  # initialize to empty list
 

@@ -6,6 +6,7 @@ import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 from celeba import CelebA
+import os
 
 
 class ImageDataset(object):
@@ -49,6 +50,7 @@ class ImageDataset(object):
 
             self.test = self.valid
         elif args.dataset.lower() == 'celeba':   
+            self.data_dir = os.path.join(args.data_path,args.dataset)
             self.train = torch.utils.data.DataLoader(
                 Dt(root=args.data_path, transform=transform),
                 batch_size=args.dis_bs, shuffle=True,
