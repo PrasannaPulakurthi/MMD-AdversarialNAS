@@ -28,7 +28,7 @@ def main():
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_ids
       
     # set TensorFlow environment for evaluation (calculate IS and FID)
-    _init_inception()
+    _init_inception([args.eval_batch_size,args.img_size,args.img_size,3])
     inception_path = check_or_download_inception('./tmp/imagenet/')
     create_inception_graph(inception_path)
 

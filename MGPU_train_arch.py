@@ -33,7 +33,7 @@ def main():
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_ids
         
     # set TensorFlow environment for evaluation (calculate IS and FID)
-    _init_inception()
+    _init_inception([args.eval_batch_size,args.img_size,args.img_size,3])
     inception_path = check_or_download_inception('./tmp/imagenet/')
     create_inception_graph(inception_path)
 
@@ -108,6 +108,8 @@ def main():
         fid_stat = 'fid_stat/fid_stats_cifar10_train.npz'
     elif args.dataset.lower() == 'stl10':
         fid_stat = 'fid_stat/stl10_train_unlabeled_fid_stats_48.npz'
+    elif args.fid_stat is not None:
+        fid_stat = args.fid_stat
     else:
         raise NotImplementedError(f'no fid stat for {args.dataset.lower()}')
     assert os.path.exists(fid_stat)
