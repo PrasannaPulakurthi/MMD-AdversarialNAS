@@ -50,14 +50,14 @@ class ImageDataset(object):
 
             self.test = self.valid
         elif args.dataset.lower() == 'celeba':   
-            self.data_dir = os.path.join(args.data_path,args.dataset)
+            data_dir = os.path.join(args.data_path,args.dataset)
             self.train = torch.utils.data.DataLoader(
-                Dt(root=args.data_path, transform=transform),
+                Dt(root=data_dir, transform=transform),
                 batch_size=args.dis_bs, shuffle=True,
                 num_workers=args.num_workers, pin_memory=True, drop_last=True)
 
             self.valid = torch.utils.data.DataLoader(
-                Dt(root=args.data_path, transform=transform),
+                Dt(root=data_dir, transform=transform),
                 batch_size=args.dis_bs, shuffle=False,
                 num_workers=args.num_workers, pin_memory=True)
 
