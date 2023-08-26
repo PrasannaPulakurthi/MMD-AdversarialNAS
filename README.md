@@ -75,4 +75,4 @@ Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6
 
 
 ## Acknowledgement
-Codebase from [AdversarialNAS](https://github.com/chengaopro/AdversarialNAS)
+Codebase from [AdversarialNAS](https://github.com/chengaopro/AdversarialNAS), [AutoGAN](https://github.com/VITA-Group/AutoGAN)
