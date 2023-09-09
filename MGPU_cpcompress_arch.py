@@ -229,11 +229,14 @@ def main():
         performance_store.plot(args.path_helper['prefix'])
 
     # Apply compression on all layers of the model (one-shot)
+    logger.info(f'args.layers:{args.layers}')
     removed_params = {}
     for name, param in gen_net.named_parameters():
-        if any([layer in name for layer in args.layers]):
+        logger.info(f'scanning for:{name}')
+        if any([name[:len('module.'+layer)]=='module.'+layer for layer in args.layers]):
+            logger.info(f'found:{name}')
             removed_params[name]=param
-    print('Removed params:', removed_params.keys())
+    logger.info(f'Removed params:{removed_params.keys()}')
 
     gen_avg_param, compression_info, decomposition_info = compress_obj.apply_compression(args, gen_net, gen_avg_param, args.layers, args.rank, logger)
 
@@ -263,7 +266,7 @@ def main():
     logger.info(f'Inception score mean: {inception_score}, Inception score std: {std}, '
                 f'FID score: {fid_score} || after compression.')
     load_params(gen_net, backup_param)
-    performance_store.update(fid_score, inception_score, -1)
+    performance_store.update(fid_score, inception_score, start_epoch)
     performance_store.plot(args.path_helper['prefix'])
 
     # set optimizer after compression
@@ -286,7 +289,7 @@ def main():
     logger.info(f'new_params: {new_param_names}')
     #quit()
     new_gen_optimizer = torch.optim.Adam(old_params, args.g_lr, (args.beta1, args.beta2))
-    new_gen_optimizer.add_param_group({'params': new_params, 'lr': 1e-5, 'betas': (args.beta1, args.beta2)})
+    new_gen_optimizer.add_param_group({'params': new_params, 'lr': 1e-8, 'betas': (args.beta1, args.beta2)})
     new_dis_optimizer = torch.optim.Adam(dis_net.parameters(), args.d_lr, (args.beta1, args.beta2))
     for name, param in gen_net.named_parameters():
         if param in gen_optimizer.state.keys():
