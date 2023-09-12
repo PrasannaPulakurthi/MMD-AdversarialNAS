@@ -152,7 +152,7 @@ def cp_decomposition_con_layer(layer, rank):
     while cont:
         #(weights, factors), decomp_err = parafac(layer.weight.data, rank=rank, init='random', return_errors=True)
         (weights, factors), decomp_err = parafac(layer.weight.data, rank=rank, init='random', return_errors=True, normalize_factors=True, orthogonalise=True)
-        print('cp weights (must be 1): ', weights)
+        # print('cp weights (must be 1): ', weights)
         const = torch.sqrt(torch.sqrt(weights)) #added to distribute the weights equally
         factors[0] = factors[0]*const #added to distribute the weights equally
         factors[1] = factors[1]*const #added to distribute the weights equally
@@ -410,7 +410,8 @@ class Compression:
         else:
             freeze = False
         new_layers, approx_error, layer_compress_ratio, decomp_rank = decompose_and_replace_conv_layer_by_name(network.module, layer, rank=rank, freeze=freeze, device=args.gpu_ids[0])
-        print(new_layers)
+        # print(new_layers)
+        
         # calculate sizes after layer decomposition
         step_size = count_parameters_in_MB(network)
         step_flops = 0 #print_FLOPs(network, (1, args.latent_dim), logger)
@@ -427,7 +428,7 @@ class Compression:
             print('Layer Approximation error: {}, Layer Reduction ratio: {}'.format(approx_error[-1], layer_compress_ratio))
             print(f"Param size of G after decomposing {layer} = {step_size}M")
             print(f"FLOPs of G at step after decomposing {layer} = {step_flops}M")
-            print(f"Compression ratio of G at step {layer}  = {self.compression_info.get_compression_ratio()}")
+            print(f"Compression ratio of G at step {layer}  = {self.compression_info.get_compression_ratio()}\n")
 
         if avg_param is not None:
             # The gen_avg_param of the compressed layer must be replaced with the new compressed layer

@@ -33,6 +33,8 @@ def main():
     torch.cuda.manual_seed(args.random_seed)
     print(args.freeze_layers)
 
+    args.exp_name = args.exp_name + '-' + args.checkpoint
+
     # set visible GPU ids
     if len(args.gpu_ids) > 0:
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_ids
@@ -118,7 +120,6 @@ def main():
     start_epoch = 0
     best_fid = 1e4
     best_is = 0
-
 
     # model size
     gen_params0 = count_parameters_in_MB(gen_net)
@@ -255,6 +256,7 @@ def main():
     logger.info('------------------------------------------')
     for name, param in dis_net.named_parameters():
         logger.info(f"{name}-{param.requires_grad}")
+
     # Evaluate after compression
     logger.info('------------------------------------------')
     logger.info('Performance Evaluation After compression')
@@ -314,6 +316,25 @@ def main():
     #dis_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, dis_net.parameters()),
     #                                 args.d_lr, momentum=0.9)
     
+    avg_gen_net = deepcopy(gen_net)
+    is_best = True
+    save_checkpoint({
+        'epoch': int(start_epoch),
+        'model': args.arch,
+        'gen_state_dict': gen_net.state_dict(),
+        'dis_state_dict': dis_net.state_dict(),
+        'avg_gen_state_dict': avg_gen_net.state_dict(),
+        'gen_optimizer': gen_optimizer.state_dict(),
+        'dis_optimizer': dis_optimizer.state_dict(),
+        'best_fid': fid_score,
+        'best_is': inception_score,
+        'path_helper': args.path_helper,
+        'compression_info': compression_info,
+        'decomposition_info': decomposition_info,
+        'performance_store': performance_store,
+    }, is_best, args.path_helper['ckpt_path'])
+    del avg_gen_net
+
     print("Fine-Tuning the generator")
     # train loop
     for epoch in tqdm(range(int(start_epoch), int(args.max_epoch_D)), desc='total progress'):
