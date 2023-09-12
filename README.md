@@ -9,18 +9,8 @@
     git clone https://github.com/PrasannaPulakurthi/AdversarialNAS-MMD.git
     ~~~
    
-2. Install pytorch 1.1.0, tensorflow 1.9.0, CUDA 9.0 and corresponding CUDNN via conda.
+2. Install Pytorch, Tensorflow 1, CUDA, and requirements.
 
-    ~~~
-    conda install pytorch==1.1.0 torchvision==0.3.0 cudatoolkit=9.0 -c pytorch
-    ~~~
-   
-    ~~~
-    conda install tensorflow-gpu==1.9.0 cudnn
-    ~~~
-   
-3. Install the requirements via pip.
-    
     ~~~
     pip install -r requirements.txt
     ~~~
@@ -29,7 +19,7 @@
 
 Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6Y-btreBtyVZ-kdGTIZgLTjsv7H4Pd?usp=sharing).
 
-1. Download the pretrained models to ./exps
+1. Download the pre-trained models to ./exps
     
 2. Download the pre-calculated statistics to ./fid_stat for calculating the FID.
 
