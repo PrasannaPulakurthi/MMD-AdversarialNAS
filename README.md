@@ -6,7 +6,7 @@
 1. Clone this repository.
 
     ~~~
-    git clone https://github.com/PrasannaPulakurthi/AdversarialNAS-MMD.git
+    git clone https://github.com/PrasannaPulakurthi/MMD-AdversarialNAS.git
     ~~~
    
 2. Install Pytorch, Tensorflow 1, CUDA, and requirements.
