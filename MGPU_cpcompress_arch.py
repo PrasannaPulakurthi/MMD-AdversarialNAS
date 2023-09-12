@@ -33,14 +33,12 @@ def main():
     torch.cuda.manual_seed(args.random_seed)
     print(args.freeze_layers)
 
-    args.exp_name = 'CP-compress-'+args.dataset + '-'+ args.exp_name
-
     # set visible GPU ids
     if len(args.gpu_ids) > 0:
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_ids
         
     # set TensorFlow environment for evaluation (calculate IS and FID)
-    _init_inception()
+    _init_inception([args.eval_batch_size,args.img_size,args.img_size,3])
     inception_path = check_or_download_inception('./tmp/imagenet/')
     create_inception_graph(inception_path)
 
@@ -287,9 +285,9 @@ def main():
             new_param_names.append(name)
     logger.info(f'old_params: {old_param_names}')
     logger.info(f'new_params: {new_param_names}')
-    #quit()
+    
     new_gen_optimizer = torch.optim.Adam(old_params, args.g_lr, (args.beta1, args.beta2))
-    new_gen_optimizer.add_param_group({'params': new_params, 'lr': 1e-8, 'betas': (args.beta1, args.beta2)})
+    new_gen_optimizer.add_param_group({'params': new_params, 'lr': 2e-4, 'betas': (args.beta1, args.beta2)})
     new_dis_optimizer = torch.optim.Adam(dis_net.parameters(), args.d_lr, (args.beta1, args.beta2))
     for name, param in gen_net.named_parameters():
         if param in gen_optimizer.state.keys():
@@ -316,8 +314,7 @@ def main():
     #dis_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, dis_net.parameters()),
     #                                 args.d_lr, momentum=0.9)
     
-    
-    
+    print("Fine-Tuning the generator")
     # train loop
     for epoch in tqdm(range(int(start_epoch), int(args.max_epoch_D)), desc='total progress'):
         lr_schedulers = (gen_scheduler, dis_scheduler) if args.lr_decay else None
