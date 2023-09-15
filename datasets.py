@@ -1,6 +1,3 @@
-# @Date    : 2019-10-22
-# @Author  : Chen Gao
-
 import torch
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms

@@ -1,6 +1,3 @@
-# @Date    : 2019-10-22
-# @Author  : Chen Gao
-
 import argparse
 
 

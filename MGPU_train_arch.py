@@ -1,6 +1,3 @@
-# @Date    : 2019-10-22
-# @Author  : Chen Gao
-
 from __future__ import absolute_import, division, print_function
 
 import cfg
