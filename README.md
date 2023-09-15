@@ -2,7 +2,6 @@
 
 ## Representative Visual Results
 ![All Visual Results](assets/All_Grid.png)
-![CelebA Visual Results](assets/cifar_visual.png)
 
 ## Getting Started
 ### Installation
