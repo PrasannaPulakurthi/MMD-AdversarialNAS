@@ -1,7 +1,8 @@
 # MMD-AdversarialNAS
 
 ## Representative Visual Results
-![CelebA Visual Results](assets/All_Grid.png)
+![All Visual Results](assets/All_Grid.png)
+![CelebA Visual Results](assets/cifar_visual.png)
 
 ## Getting Started
 ### Installation
