@@ -1,5 +1,7 @@
-# AdversarialNAS-MMD
+# MMD-AdversarialNAS
 
+## Representative Visual Results
+![CelebA Visual Results](assets/CelebA_grid.png)
 
 ## Getting Started
 ### Installation
