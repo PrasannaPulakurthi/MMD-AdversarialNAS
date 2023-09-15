@@ -1,6 +1,3 @@
-# @Date    : 2019-10-22
-# @Author  : Chen Gao
-
 import cfg
 import archs
 from network import validate, load_params, copy_params
