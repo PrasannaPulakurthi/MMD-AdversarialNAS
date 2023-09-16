@@ -1,8 +1,7 @@
-# ENHANCING GAN PERFORMANCE THROUGH NEURAL ARCHITECTURE SEARCH AND TENSOR DECOMPOSITION
+# ENHANCING GAN PERFORMANCE THROUGH NEURAL ARCHITECTURE SEARCH AND TENSOR DECOMPOSITION (MMD-AdversarialNAS)
 
-# MMD-AdversarialNAS
 
-## Representative Visual Results
+## Qualitative Results
 ![All Visual Results](assets/All_Grid.png)
 
 ## Getting Started
