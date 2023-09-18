@@ -2,7 +2,7 @@
 
 
 ## Qualitative Results
-![All Visual Results](assets/All_Grid.png)
+![All Visual Results](assets/All_Grid1.png)
 
 ## Getting Started
 ### Installation
