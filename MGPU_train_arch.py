@@ -107,7 +107,7 @@ def main():
     elif args.dataset.lower() == 'stl10':
         fid_stat = 'fid_stat/stl10_train_unlabeled_fid_stats_48.npz'
     elif args.dataset.lower() == 'celeba':
-        fid_stat = 'fid_stat/fid_stats_celeba_hq_256.npz'
+        fid_stat = 'fid_stat/fid_stats_celebA_train.npz'
     else:
         raise NotImplementedError(f'no fid stat for {args.dataset.lower()}')
     assert os.path.exists(fid_stat)
@@ -213,12 +213,13 @@ def main():
             'path_helper': args.path_helper
         }, is_best, args.path_helper['ckpt_path'])
         del avg_gen_net
+        
 
         # If there is no improvement for 30 epoches then load the best model
-        
+
         if icounter == 0:
-            '''
-            print(f'=> resuming from {args.path_helper["ckpt_path"]}')
+            """
+            print(f'=> resuming from {args.path_helper['ckpt_path']}')
             checkpoint_file = os.path.join(args.path_helper['ckpt_path'],'checkpoint_best.pth')
             assert os.path.exists(checkpoint_file)
             checkpoint = torch.load(checkpoint_file)
@@ -232,7 +233,7 @@ def main():
             avg_gen_net.load_state_dict(checkpoint['avg_gen_state_dict'])
             gen_avg_param = copy_params(avg_gen_net)
             del avg_gen_net
-            '''
+            """
             print(f'Upper bound changed from {args.bu} to {args.bu*2}.')
             args.bu = args.bu * 2
             if args.bu > 32:
@@ -240,7 +241,7 @@ def main():
             logger.info(f'Upper bound: {args.bu} and Lower Bound: {args.bl}.')
             icounter = improvement_count
             logger.info(f'Best FID score: {best_fid}. Best IS score: {best_is}.')
-        
+
         
 if __name__ == '__main__':
     main()
