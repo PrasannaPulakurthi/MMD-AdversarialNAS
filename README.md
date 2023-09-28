@@ -12,7 +12,7 @@
     git clone https://github.com/PrasannaPulakurthi/MMD-AdversarialNAS.git
     ~~~
    
-2. Install Pytorch, Tensorflow 1, CUDA, and requirements.
+2. Install Pytorch, Tensorflow, CUDA, and requirements.
 
     ~~~
     pip install -r requirements.txt
