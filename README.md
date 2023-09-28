@@ -27,7 +27,7 @@ Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6
 2. Download the pre-calculated statistics to ./fid_stat for calculating the FID.
 
 
-## Instructions for Testing, Training, and Searching the Model.
+## Instructions for Testing, Training, Searching, and Compressing the Model.
 ### Testing
 1. Download the trained generative models [Google Drive](https://drive.google.com/drive/folders/1xB6Y-btreBtyVZ-kdGTIZgLTjsv7H4Pd?usp=sharing) to ./exps/arch_train_cifar10/Model
 
