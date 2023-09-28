@@ -30,8 +30,6 @@ def main():
     torch.cuda.manual_seed(args.random_seed)
     print(args.freeze_layers)
 
-    args.exp_name = args.exp_name + '-' + args.checkpoint
-
     # set visible GPU ids
     if len(args.gpu_ids) > 0:
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_ids
