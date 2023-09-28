@@ -69,7 +69,7 @@ def main():
     checkpoint = torch.load(checkpoint_file)
     epoch = checkpoint['epoch'] - 1
     gen_net.load_state_dict(checkpoint['gen_state_dict'])
-    dis_net.load_state_dict(checkpoint['dis_state_dict'])
+    # dis_net.load_state_dict(checkpoint['dis_state_dict'])
     avg_gen_net = deepcopy(gen_net)
     avg_gen_net.load_state_dict(checkpoint['avg_gen_state_dict'])
     gen_avg_param = copy_params(avg_gen_net)
