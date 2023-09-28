@@ -76,4 +76,4 @@ Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6
     ~~~
 
 ## Acknowledgement
-Codebase from [AdversarialNAS](https://github.com/chengaopro/AdversarialNAS), [TransGAN](https://github.com/VITA-Group/TransGAN), [Tensorly](https://github.com/tensorly/tensorly).
+Codebase from [AdversarialNAS](https://github.com/chengaopro/AdversarialNAS), [TransGAN](https://github.com/VITA-Group/TransGAN), and [Tensorly](https://github.com/tensorly/tensorly).
