@@ -26,9 +26,7 @@ torch.backends.cudnn.benchmark = True
 
 def main():
     args = cfg_compress.parse_args()
-    validate_args(args)
     torch.cuda.manual_seed(args.random_seed)
-    print(args.freeze_layers)
 
     # set visible GPU ids
     if len(args.gpu_ids) > 0:
@@ -157,7 +155,7 @@ def main():
     # model size
     logger.info('Param size of G = %fMB', count_parameters_in_MB(gen_net))
     # logger.info('Param size of D = %fMB', count_parameters_in_MB(dis_net))
-    print_FLOPs(basemodel_gen, (1, args.latent_dim), logger)
+    # print_FLOPs(basemodel_gen, (1, args.latent_dim), logger)
     # print_FLOPs(basemodel_dis, (1, 3, args.img_size, args.img_size), logger)
 
     if performance_store is None:
