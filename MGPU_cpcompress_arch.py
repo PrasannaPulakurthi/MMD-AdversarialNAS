@@ -254,18 +254,20 @@ def main():
     logger.info('------------------------------------------')
     for name, param in dis_net.named_parameters():
         logger.info(f"{name}-{param.requires_grad}")
+
     # Evaluate after compression
     logger.info('------------------------------------------')
     logger.info('Performance Evaluation After compression')
     backup_param = copy_params(gen_net)
     load_params(gen_net, gen_avg_param)
+    
     inception_score, std, fid_score = validate(args, fixed_z, fid_stat, gen_net, writer_dict)
     logger.info(f'Inception score mean: {inception_score}, Inception score std: {std}, '
                 f'FID score: {fid_score} || after compression.')
     load_params(gen_net, backup_param)
     performance_store.update(fid_score, inception_score, start_epoch)
     performance_store.plot(args.path_helper['prefix'])
-
+    
     # set optimizer after compression
     #gen_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, gen_net.parameters()),
     #                                 args.g_lr, (args.beta1, args.beta2))
@@ -284,7 +286,7 @@ def main():
             new_param_names.append(name)
     logger.info(f'old_params: {old_param_names}')
     logger.info(f'new_params: {new_param_names}')
-    #quit()
+
     new_gen_optimizer = torch.optim.Adam(old_params, args.g_lr, (args.beta1, args.beta2))
     new_gen_optimizer.add_param_group({'params': new_params, 'lr': 1e-8, 'betas': (args.beta1, args.beta2)})
     new_dis_optimizer = torch.optim.Adam(dis_net.parameters(), args.d_lr, (args.beta1, args.beta2))
@@ -303,8 +305,6 @@ def main():
                         new_gen_optimizer.state[param]['exp_avg'] = gen_optimizer.state[p_]['exp_avg'].clone()
                         new_gen_optimizer.state[param]['exp_avg_sq'] = gen_optimizer.state[p_]['exp_avg_sq'].clone()
                         print(new_gen_optimizer.state[param]['exp_avg'].shape, param.shape)
-                        
-
 
         print(name, param in gen_optimizer.state.keys())
 
@@ -313,8 +313,34 @@ def main():
     #dis_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, dis_net.parameters()),
     #                                 args.d_lr, momentum=0.9)
     
-    
-    
+    epoch = 0
+    best_fid = fid_score
+    best_is = inception_score
+    is_best = True
+    # save the model right after compression
+    logger.info('------------------------------------------')
+    logger.info('Saving the model After compression')
+    avg_gen_net = deepcopy(gen_net)
+    load_params(avg_gen_net, gen_avg_param)
+    save_checkpoint({
+        'epoch': epoch + 1,
+        'model': args.arch,
+        'gen_state_dict': gen_net.state_dict(),
+        'dis_state_dict': dis_net.state_dict(),
+        'avg_gen_state_dict': avg_gen_net.state_dict(),
+        'gen_optimizer': gen_optimizer.state_dict(),
+        'dis_optimizer': dis_optimizer.state_dict(),
+        'best_fid': best_fid,
+        'best_is': best_is,
+        'path_helper': args.path_helper,
+        'compression_info': compression_info,
+        'decomposition_info': decomposition_info,
+        'performance_store': performance_store,
+    }, is_best, args.path_helper['ckpt_path'])
+    del avg_gen_net
+    logger.info('------------------------------------------')
+    logger.info(f"Saving the model at {args.path_helper['ckpt_path']}")
+
     # train loop
     for epoch in tqdm(range(int(start_epoch), int(args.max_epoch_D)), desc='total progress'):
         lr_schedulers = (gen_scheduler, dis_scheduler) if args.lr_decay else None
