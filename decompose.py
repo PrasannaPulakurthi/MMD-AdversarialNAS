@@ -373,7 +373,7 @@ class CompressionInfo:
         try:
             return self.total_size_reduction_ratio[-1]
         except:
-            logger.warning('No compression ratio found')
+            print('No compression ratio found')
             return 0
 
 class Compression:
@@ -393,9 +393,9 @@ class Compression:
 
     def apply_layer_compression(self, args, network, layer, rank, logger=None, avg_param=None, replace_only=False):
         try:
-            logger.info('Decomposing layer {} with rank {}'.format(layer, rank))
+            logger.info('\nDecomposing layer {} with rank {}'.format(layer, rank))
         except:
-            print('Decomposing layer {} with rank {}'.format(layer, rank))
+            print('\nDecomposing layer {} with rank {}'.format(layer, rank))
 
 
         if avg_param is not None:
@@ -414,25 +414,28 @@ class Compression:
         else:
             freeze = False
         new_layers, approx_error, layer_compress_ratio, decomp_rank = decompose_and_replace_conv_layer_by_name(network.module, layer, rank=rank, freeze=freeze, device=args.gpu_ids[0], replace_only=replace_only)
-        # print(new_layers)
-        
         # calculate sizes after layer decomposition
         step_size = count_parameters_in_MB(network)
-        step_flops = 0 #print_FLOPs(network, (1, args.latent_dim), logger)
+        step_flops = 0 # print_FLOPs(network, (1, args.latent_dim), logger)
 
         self.compression_info.add(layer, rank, step_size, step_flops, layer_compress_ratio)
-        self.decomposition_info.append(layer=layer, rank=decomp_rank, approx_error=approx_error[-1])
-
         if logger is not None:
-            logger.info('Layer Approximation error: {}, Layer Reduction ratio: {}'.format(approx_error[-1], layer_compress_ratio))
             logger.info('Param size of G after decomposing %s = %fM',layer, step_size)
-            logger.info('FLOPs of G at step after decomposing %s = %fG', layer, step_flops)
+            # logger.info('FLOPs of G at step after decomposing %s = %fG', layer, step_flops)
             logger.info('Compression ratio of G at step %s  = %f', layer, self.compression_info.get_compression_ratio())
         else:
-            print('Layer Approximation error: {}, Layer Reduction ratio: {}'.format(approx_error[-1], layer_compress_ratio))
             print(f"Param size of G after decomposing {layer} = {step_size}M")
-            print(f"FLOPs of G at step after decomposing {layer} = {step_flops}M")
-            print(f"Compression ratio of G at step {layer}  = {self.compression_info.get_compression_ratio()}\n")
+            # print(f"FLOPs of G at step after decomposing {layer} = {step_flops}M")
+            print(f"Compression ratio of G at step {layer}  = {self.compression_info.get_compression_ratio()}")
+
+        if not replace_only:  
+            self.decomposition_info.append(layer=layer, rank=decomp_rank, approx_error=approx_error[-1])
+            if logger is not None:
+                logger.info('Layer Approximation error: {}, Layer Reduction ratio: {}'.format(approx_error[-1], layer_compress_ratio))
+            else:
+                print('Layer Approximation error: {}, Layer Reduction ratio: {}'.format(approx_error[-1], layer_compress_ratio))
+
+
 
         if avg_param is not None:
             # The gen_avg_param of the compressed layer must be replaced with the new compressed layer
