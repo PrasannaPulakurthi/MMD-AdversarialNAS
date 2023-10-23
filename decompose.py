@@ -45,7 +45,7 @@ def decompose_and_replace_conv_layers(module, replaced_layers, rank=None, device
             if layer_key not in replaced_layers:
                 print(name)
                 replaced_layers[layer_key] = layer
-                new_layers, error, layer_compress_ratio = cp_decomposition_con_layer(layer.cpu(), rank)
+                new_layers, error, layer_compress_ratio = cp_decomposition_con_layer(layer, rank)
                 new_layers = new_layers.to(device)
                 setattr(module, name, new_layers)
                 break
@@ -53,7 +53,7 @@ def decompose_and_replace_conv_layers(module, replaced_layers, rank=None, device
             continue
     return replaced_layers, error
 
-def decompose_and_replace_conv_layer_by_name(module, layer_name, rank=None, freeze=False, device='cpu', decomposition='cp'):    # rank must be int/tuple/list for tucker
+def decompose_and_replace_conv_layer_by_name(module, layer_name, rank=None, freeze=False, device='cpu', decomposition='cp', replace_only=False):    # rank must be int/tuple/list for tucker
     
     if rank is None:
         raise ValueError("Please specify a rank for decomposition")
@@ -71,16 +71,16 @@ def decompose_and_replace_conv_layer_by_name(module, layer_name, rank=None, free
         if isinstance(layer,nn.Conv2d):
             if layer_name == fullname:
                 if decomposition == 'cp':
-                    new_layers, error, layer_compress_ratio, rank = cp_decomposition_con_layer(layer, rank)
-                elif decomposition == 'tucker':
-                    new_layers, error, layer_compress_ratio, rank = tucker_decompose_con_layer(layer, rank)
+                    new_layers, error, layer_compress_ratio, rank = cp_decomposition_con_layer(layer, rank, replace_only=replace_only)
+                #elif decomposition == 'tucker':
+                #    new_layers, error, layer_compress_ratio, rank = tucker_decompose_con_layer(layer, rank)
                 else:
                     raise('Unknown decomposition method.')
                 new_layers = new_layers.to(device)
                 setattr(parent, name, new_layers)
                 break
         elif isinstance(layer,nn.Linear) and layer_name == fullname:
-            new_layers, error, layer_compress_ratio, rank = cp_decomposition_fc_layer(layer, rank)
+            new_layers, error, layer_compress_ratio, rank = cp_decomposition_fc_layer(layer, rank, replace_only=replace_only)
             new_layers = new_layers.to(device)
             setattr(parent, name, new_layers)
             break
@@ -95,10 +95,10 @@ def decompose_and_replace_conv_layer_by_name(module, layer_name, rank=None, free
             #param.requires_grad = False
     return  new_layers, error, layer_compress_ratio, rank
 
-def cp_decomposition_fc_layer(layer, rank, only_replace=False):
+def cp_decomposition_fc_layer(layer, rank, replace_only=False):
 
     layer_total_params = sum(p.numel() for p in layer.parameters()) ##newline
-    if not only_replace:
+    if not replace_only:
         cont = True
         while cont:
             #(weights, factors), decomp_err = parafac(layer.weight.data, rank=rank, init='random', return_errors=True)
@@ -141,31 +141,35 @@ def cp_decomposition_fc_layer(layer, rank, only_replace=False):
 
     return new_layers, decomp_err, layer_compress_ratio, rank
 
-def cp_decomposition_con_layer(layer, rank):
+def cp_decomposition_con_layer(layer, rank, replace_only=False):
     stride0 = layer.stride[0]
     stride1 = layer.stride[1]
     padding0 = layer.padding[0]
     padding1 = layer.padding[1]
 
     layer_total_params = sum(p.numel() for p in layer.parameters()) ##newline
-    cont = True
-    while cont:
-        #(weights, factors), decomp_err = parafac(layer.weight.data, rank=rank, init='random', return_errors=True)
-        (weights, factors), decomp_err = parafac(layer.weight.data, rank=rank, init='random', return_errors=True, normalize_factors=True, orthogonalise=True)
-        # print('cp weights (must be 1): ', weights)
-        const = torch.sqrt(torch.sqrt(weights)) #added to distribute the weights equally
-        factors[0] = factors[0]*const #added to distribute the weights equally
-        factors[1] = factors[1]*const #added to distribute the weights equally
-        factors[2] = factors[2]*const #added to distribute the weights equally
-        factors[3] = factors[3]*const #added to distribute the weights equally
-        weights = torch.ones(rank) #added to distribute the weights equally
-        #decomp_err.append(torch.norm(tl.cp_tensor.cp_to_tensor((weights, factors))-layer.weight.data)/torch.norm(layer.weight.data)) #added to distribute the weights equally
+    if not replace_only:
+        cont = True
+        while cont:
+            #(weights, factors), decomp_err = parafac(layer.weight.data, rank=rank, init='random', return_errors=True)
+            (weights, factors), decomp_err = parafac(layer.weight.data, rank=rank, init='random', return_errors=True, normalize_factors=True, orthogonalise=True)
+            const = torch.sqrt(torch.sqrt(weights)) #added to distribute the weights equally
+            factors[0] = factors[0]*const #added to distribute the weights equally
+            factors[1] = factors[1]*const #added to distribute the weights equally
+            factors[2] = factors[2]*const #added to distribute the weights equally
+            factors[3] = factors[3]*const #added to distribute the weights equally
+            weights = torch.ones(rank) #added to distribute the weights equally
+            #decomp_err.append(torch.norm(tl.cp_tensor.cp_to_tensor((weights, factors))-layer.weight.data)/torch.norm(layer.weight.data)) #added to distribute the weights equally
+            c_out, c_in, x, y = factors[0], factors[1], factors[2], factors[3]
+            if torch.isnan(c_out).any() or torch.isnan(c_in).any() or torch.isnan(x).any() or torch.isnan(y).any():
+                _logger.info(f"NaN detected in CP decomposition, trying again with rank {int(rank/2)}")
+                rank = int(rank/2)
+            else:
+                cont = False
+    else:
+        (_,factors) = random_cp(layer.weight.data.shape, rank=rank)
         c_out, c_in, x, y = factors[0], factors[1], factors[2], factors[3]
-        if torch.isnan(c_out).any() or torch.isnan(c_in).any() or torch.isnan(x).any() or torch.isnan(y).any():
-            _logger.info(f"NaN detected in CP decomposition, trying again with rank {int(rank/2)}")
-            rank = int(rank/2)
-        else:
-            cont = False
+        decomp_err = None
 
     bias_flag = layer.bias is not None
 
@@ -379,15 +383,15 @@ class Compression:
         self.decomposition_info = DecompositionInfo()
         self.compression_info = CompressionInfo(size0, flops0)
 
-    def apply_decomposition_from_checkpoint(self, args, network, decomposition_info:DecompositionInfo, compression_info: CompressionInfo = None): ##TODO
+    def apply_decomposition_from_checkpoint(self, args, network, decomposition_info:DecompositionInfo, compression_info: CompressionInfo = None, replace_only=False): ##TODO
         for layer, rank in zip(decomposition_info.layers, decomposition_info.ranks):
-            self.apply_layer_compression(args, network, layer, rank)
+            self.apply_layer_compression(args, network, layer, rank, replace_only=replace_only)
         self.decomposition_info = decomposition_info
         if compression_info is not None:
             self.compression_info = compression_info
 
 
-    def apply_layer_compression(self, args, network, layer, rank, logger=None, avg_param=None):
+    def apply_layer_compression(self, args, network, layer, rank, logger=None, avg_param=None, replace_only=False):
         try:
             logger.info('Decomposing layer {} with rank {}'.format(layer, rank))
         except:
@@ -409,7 +413,7 @@ class Compression:
             freeze = True
         else:
             freeze = False
-        new_layers, approx_error, layer_compress_ratio, decomp_rank = decompose_and_replace_conv_layer_by_name(network.module, layer, rank=rank, freeze=freeze, device=args.gpu_ids[0])
+        new_layers, approx_error, layer_compress_ratio, decomp_rank = decompose_and_replace_conv_layer_by_name(network.module, layer, rank=rank, freeze=freeze, device=args.gpu_ids[0], replace_only=replace_only)
         # print(new_layers)
         
         # calculate sizes after layer decomposition

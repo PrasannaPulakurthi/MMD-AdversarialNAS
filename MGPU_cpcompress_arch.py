@@ -150,7 +150,7 @@ def main():
                 compression_info = checkpoint['compression_info']
             except:
                 compression_info = None
-            compress_obj.apply_decomposition_from_checkpoint(args, gen_net, checkpoint['decomposition_info'], compression_info)  # apply decomposition before loading checkpoint
+            compress_obj.apply_decomposition_from_checkpoint(args, gen_net, checkpoint['decomposition_info'], compression_info, replace_only=True)  # apply decomposition before loading checkpoint
         else:
             # starting from pretrained model
             # re-set the best_fid and best_is, otherwise, 
