@@ -1,0 +1,14 @@
+
+# Compress the large network 
+# 1. Compress and finetune all the convolutional layers except 9 and 13.
+python MGPU_cpcompress_arch.py --gpu_ids 0 --num_workers 8 --dataset stl10 --bottom_width 6 --img_size 48 --arch arch_cifar10 --draw_arch False --genotypes_exp arch_cifar10  --latent_dim 120 --gf_dim 256 --df_dim 512 --num_eval_imgs 50000 --eval_batch_size 100 --checkpoint arch_train_stl10_large  --exp_name compress_train_stl10_large --val_freq 5  --gen_bs  128 --dis_bs 128 --beta1 0.0 --beta2 0.9  --byrank --rank 128 --layers cell1.c0.ops.0.op.1 cell1.c1.ops.0.op.1 cell1.c2.ops.0.op.1 cell1.c3.ops.0.op.1 cell2.c0.ops.0.op.1 cell2.c2.ops.0.op.1 cell2.c3.ops.0.op.1 cell2.c4.ops.0.op.1 cell3.c1.ops.0.op.1 cell3.c2.ops.0.op.1 cell3.c3.ops.0.op.1 --compress-mode "allatonce" --max_epoch_G 500 --eval_before_compression
+
+# 2. Compress the Fully Connected Layers except l1. 
+python MGPU_cpcompress_arch.py --gpu_ids 0 --num_workers 8 --dataset stl10 --bottom_width 6 --img_size 48 --arch arch_cifar10 --draw_arch False --genotypes_exp arch_cifar10  --latent_dim 120 --gf_dim 256 --df_dim 512 --num_eval_imgs 50000 --eval_batch_size 100 --checkpoint compress_train_stl10_large  --exp_name compress_train_stl10_large --val_freq 5  --gen_bs  128 --dis_bs 128 --beta1 0.0 --beta2 0.9  --byrank --rank 4 --layers l2 --freeze_layers l2 --compress-mode "allatonce" --max_epoch_G 1 --eval_before_compression
+
+# Compress the small network 
+# 1. Compress and finetune all the convolutional layers except 9 and 13.
+python MGPU_cpcompress_arch.py --gpu_ids 0 --num_workers 8 --dataset stl10 --bottom_width 6 --img_size 48 --arch arch_cifar10 --draw_arch False --genotypes_exp arch_cifar10  --latent_dim 120 --gf_dim 128 --df_dim 512 --num_eval_imgs 50000 --eval_batch_size 100 --checkpoint arch_train_stl10_small  --exp_name compress_train_stl10_small --val_freq 5  --gen_bs  128 --dis_bs 128 --beta1 0.0 --beta2 0.9  --byrank --rank 128 --layers cell1.c0.ops.0.op.1 cell1.c1.ops.0.op.1 cell1.c2.ops.0.op.1 cell1.c3.ops.0.op.1 cell2.c0.ops.0.op.1 cell2.c2.ops.0.op.1 cell2.c3.ops.0.op.1 cell2.c4.ops.0.op.1 cell3.c1.ops.0.op.1 cell3.c2.ops.0.op.1 cell3.c3.ops.0.op.1 --compress-mode "allatonce" --max_epoch_G 500 --eval_before_compression
+
+# 2. Compress the Fully Connected Layers except l1. 
+python MGPU_cpcompress_arch.py --gpu_ids 0 --num_workers 8 --dataset stl10 --bottom_width 6 --img_size 48 --arch arch_cifar10 --draw_arch False --genotypes_exp arch_cifar10  --latent_dim 120 --gf_dim 128 --df_dim 512 --num_eval_imgs 50000 --eval_batch_size 100 --checkpoint compress_train_stl10_small  --exp_name compress_train_stl10_small --val_freq 5  --gen_bs  128 --dis_bs 128 --beta1 0.0 --beta2 0.9  --byrank --rank 4 --layers l2 --freeze_layers l2 --compress-mode "allatonce" --max_epoch_G 1 --eval_before_compression
