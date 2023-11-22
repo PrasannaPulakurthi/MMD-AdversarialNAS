@@ -4,6 +4,9 @@
 ## Qualitative Results
 ![All Visual Results](assets/All_Grid1.png)
 
+## Quantitative Results
+![All Visual Results](assets/Quantitative_Results.png)
+
 ## Getting Started
 ### Installation
 1. Clone this repository.
