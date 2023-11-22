@@ -5,7 +5,10 @@
 ![All Visual Results](assets/All_Grid1.png)
 
 ## Quantitative Results
-![All Visual Results](assets/Quantitative_Results.png)
+![Quantitative Results](assets/Quantitative_Results.png)
+
+## Reproducibility
+![Reproducibility Results](assets/Reproducibility.png)
 
 ## Getting Started
 ### Installation
