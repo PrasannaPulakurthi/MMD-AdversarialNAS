@@ -7,7 +7,7 @@
 ## Quantitative Results
 ![Quantitative Results](assets/Quantitative_Results.png)
 
-## Reproducibility
+## Repeatability
 ![Reproducibility Results](assets/Reproducibility.png)
 
 ## Getting Started
