@@ -1,7 +1,3 @@
-# @Date    : 2019-10-22
-# @Author  : Chen Gao
-
-
 from torch import nn
 from archs.arch_cifar10_building_blocks import Cell, DisBlock, OptimizedDisBlock
 
