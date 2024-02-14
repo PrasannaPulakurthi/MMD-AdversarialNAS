@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 import torch.nn.functional as F
 
@@ -52,13 +53,40 @@ OPS_down = {
 }
 
 UPS = {
-    'nearest': lambda in_ch, out_ch: Up(in_ch, out_ch, mode='nearest'),
-    'bilinear': lambda in_ch, out_ch: Up(in_ch, out_ch, mode='bilinear'),
-    'bicubic': lambda in_ch, out_ch: Up(in_ch, out_ch, mode='bicubic'),
-    'ConvTranspose': lambda in_ch, out_ch: Up(in_ch, out_ch, mode='convT')
+    'nearest': lambda in_ch, out_ch, act: Up(in_ch, out_ch, act, mode='nearest'),
+    'bilinear': lambda in_ch, out_ch, act: Up(in_ch, out_ch, act, mode='bilinear'),
+    'bicubic': lambda in_ch, out_ch, act: Up(in_ch, out_ch, act, mode='bicubic'),
+    'ConvTranspose': lambda in_ch, out_ch, act: Up(in_ch, out_ch, act, mode='convT')
 }
 
 # ------------------------------------------------------------------------------------------------------------------- #
+
+# Define the Activation Function class
+class Activation(nn.Module): 
+    def __init__(self, act): 
+        super(Activation, self).__init__()
+        if act == 'relu':
+            self.activation_fn = nn.ReLU()
+        elif act == 'silu':
+            self.activation_fn = nn.SiLU()
+        elif act == 'swish':
+            self.activation_fn = SwishActivation()
+        else:
+            raise NotImplementedError(f'No activation function found for {act}')
+    
+    def forward(self, x): 
+        return self.activation_fn(x)
+
+# Define the Swish activation function 
+class SwishActivation(nn.Module): 
+	def __init__(self): 
+		super(SwishActivation, self).__init__() 
+		self.beta = torch.ones(1).type(torch.cuda.FloatTensor)
+		self.sigmoid = nn.Sigmoid()
+		
+	def forward(self, x): 
+		return x * self.sigmoid(self.beta*x)
+    
 
 class Conv(nn.Module):
     def __init__(self, in_ch, out_ch, kernel_size, stride, padding, sn, act):
@@ -68,7 +96,7 @@ class Conv(nn.Module):
         else:
             conv = nn.Conv2d(in_ch, out_ch, kernel_size, stride=stride, padding=padding)
         if act:
-            self.op = nn.Sequential(nn.ReLU(), conv)
+            self.op = nn.Sequential(Activation(act), conv)
         else:
             self.op = nn.Sequential(conv)
             
@@ -86,7 +114,7 @@ class DilConv(nn.Module):
             dilconv = \
                 nn.Conv2d(in_ch, out_ch, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation)
         if act:
-            self.op = nn.Sequential(nn.ReLU(), dilconv)
+            self.op = nn.Sequential(Activation(act), dilconv)
         else:
             self.op = nn.Sequential(dilconv)
 
@@ -111,19 +139,19 @@ class Zero(nn.Module):
 
 
 class Up(nn.Module):
-    def __init__(self, in_ch, out_ch, mode=None):
+    def __init__(self, in_ch, out_ch, act, mode=None):
         super(Up, self).__init__()
         self.up_mode = mode
         if self.up_mode == 'convT':
             self.convT = nn.Sequential(
-                nn.ReLU(),
+                Activation(act),
                 nn.ConvTranspose2d(
                     in_ch, in_ch, kernel_size=3, stride=2, padding=1, output_padding=1, groups=in_ch, bias=False),
                 nn.Conv2d(in_ch, out_ch, kernel_size=1, padding=0, bias=False)
             )
         else:
             self.c = nn.Sequential(
-                nn.ReLU(),
+                Activation(act),
                 nn.Conv2d(in_ch, out_ch, kernel_size=1)
             )
       
@@ -159,11 +187,11 @@ class MixedOp(nn.Module):
 
 
 class MixedUp(nn.Module):
-    def __init__(self, in_ch, out_ch, primitives):
+    def __init__(self, in_ch, out_ch, act, primitives):
         super(MixedUp, self).__init__()
         self.ups = nn.ModuleList()
         for primitive in primitives:
-            up = UPS[primitive](in_ch, out_ch)
+            up = UPS[primitive](in_ch, out_ch, act)
             self.ups.append(up)
     
     def forward(self, x):
@@ -186,21 +214,21 @@ class MixedDown(nn.Module):
 
 
 class Cell(nn.Module):
-    def __init__(self, in_channels, out_channels, up_mode, genotype, num_skip_in=0, norm=None):
+    def __init__(self, in_channels, out_channels, up_mode, genotype, act='relu', num_skip_in=0, norm=None):
         super(Cell, self).__init__()
     
-        self.up0 = MixedUp(in_channels, out_channels, [PRIMITIVES_up[genotype[0]]])
-        self.up1 = MixedUp(in_channels, out_channels, [PRIMITIVES_up[genotype[1]]])
+        self.up0 = MixedUp(in_channels, out_channels, act, [PRIMITIVES_up[genotype[0]]])
+        self.up1 = MixedUp(in_channels, out_channels, act, [PRIMITIVES_up[genotype[1]]])
         if genotype[2] > 0:
-            self.c0 = MixedOp(out_channels, out_channels, 1, False, True, [PRIMITIVES[genotype[2]]])
+            self.c0 = MixedOp(out_channels, out_channels, 1, False, act, [PRIMITIVES[genotype[2]]])
         if genotype[3] > 0:
-            self.c1 = MixedOp(out_channels, out_channels, 1, False, True, [PRIMITIVES[genotype[3]]])
+            self.c1 = MixedOp(out_channels, out_channels, 1, False, act, [PRIMITIVES[genotype[3]]])
         if genotype[4] > 0:
-            self.c2 = MixedOp(out_channels, out_channels, 1, False, True, [PRIMITIVES[genotype[4]]])
+            self.c2 = MixedOp(out_channels, out_channels, 1, False, act, [PRIMITIVES[genotype[4]]])
         if genotype[5] > 0:
-            self.c3 = MixedOp(out_channels, out_channels, 1, False, True, [PRIMITIVES[genotype[5]]])
+            self.c3 = MixedOp(out_channels, out_channels, 1, False, act, [PRIMITIVES[genotype[5]]])
         if genotype[6] > 0:
-            self.c4 = MixedOp(out_channels, out_channels, 1, False, True, [PRIMITIVES[genotype[6]]])
+            self.c4 = MixedOp(out_channels, out_channels, 1, False, act, [PRIMITIVES[genotype[6]]])
     
         self.up_mode = up_mode
         self.norm = norm

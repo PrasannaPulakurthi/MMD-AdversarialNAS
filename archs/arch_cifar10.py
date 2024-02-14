@@ -1,5 +1,5 @@
 from torch import nn
-from archs.arch_cifar10_building_blocks import Cell, DisBlock, OptimizedDisBlock
+from archs.arch_cifar10_building_blocks import Cell, DisBlock, OptimizedDisBlock, Activation
 
 
 class Generator(nn.Module):
@@ -18,11 +18,11 @@ class Generator(nn.Module):
         self.l2 = nn.Linear(self.base_latent_dim, ((self.bottom_width * 2) ** 2) * args.gf_dim)
         if args.dataset == 'cifar10':
             self.l3 = nn.Linear(self.base_latent_dim, ((self.bottom_width * 4) ** 2) * args.gf_dim)
-        self.cell1 = Cell(args.gf_dim, args.gf_dim, 'nearest', genotype[0], num_skip_in=0)
-        self.cell2 = Cell(args.gf_dim, args.gf_dim, 'bilinear', genotype[1], num_skip_in=1)
-        self.cell3 = Cell(args.gf_dim, args.gf_dim, 'nearest', genotype[2], num_skip_in=2)
+        self.cell1 = Cell(args.gf_dim, args.gf_dim, 'nearest', genotype[0], args.act, num_skip_in=0)
+        self.cell2 = Cell(args.gf_dim, args.gf_dim, 'bilinear', genotype[1], args.act, num_skip_in=1)
+        self.cell3 = Cell(args.gf_dim, args.gf_dim, 'nearest', genotype[2], args.act, num_skip_in=2)
         self.to_rgb = nn.Sequential(
-            nn.BatchNorm2d(args.gf_dim), nn.ReLU(), nn.Conv2d(args.gf_dim, 3, 3, 1, 1), nn.Tanh()
+            nn.BatchNorm2d(args.gf_dim), Activation(args.act), nn.Conv2d(args.gf_dim, 3, 3, 1, 1), nn.Tanh()
         )
 
     def forward(self, z):
