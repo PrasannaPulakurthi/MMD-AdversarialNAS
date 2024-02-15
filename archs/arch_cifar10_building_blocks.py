@@ -81,7 +81,7 @@ class Activation(nn.Module):
 class SwishActivation(nn.Module): 
 	def __init__(self): 
 		super(SwishActivation, self).__init__() 
-		self.beta = torch.ones(1).type(torch.cuda.FloatTensor)
+		self.beta = nn.Parameter(torch.ones(1).type(torch.cuda.FloatTensor))
 		self.sigmoid = nn.Sigmoid()
 		
 	def forward(self, x): 
