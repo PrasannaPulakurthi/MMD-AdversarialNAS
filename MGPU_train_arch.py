@@ -240,7 +240,7 @@ def main():
                 args.bu = 32
             logger.info(f'Upper bound: {args.bu} and Lower Bound: {args.bl}.')
             icounter = improvement_count
-            logger.info(f'Best FID score: {best_fid}. Best IS score: {best_is} || @ epoch {epoch}.')
+            logger.info(f'Best FID score: {best_fid}, Best IS score: {best_is}. || @ epoch {epoch}.')
 
         
 if __name__ == '__main__':
