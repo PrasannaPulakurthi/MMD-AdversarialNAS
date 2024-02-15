@@ -216,24 +216,7 @@ def main():
         
 
         # If there is no improvement for 30 epoches then load the best model
-
         if icounter == 0:
-            """
-            print(f'=> resuming from {args.path_helper['ckpt_path']}')
-            checkpoint_file = os.path.join(args.path_helper['ckpt_path'],'checkpoint_best.pth')
-            assert os.path.exists(checkpoint_file)
-            checkpoint = torch.load(checkpoint_file)
-            start_epoch = checkpoint['epoch']
-            best_fid = checkpoint['best_fid']
-            gen_net.load_state_dict(checkpoint['gen_state_dict'])
-            dis_net.load_state_dict(checkpoint['dis_state_dict'])
-            gen_optimizer.load_state_dict(checkpoint['gen_optimizer'])
-            dis_optimizer.load_state_dict(checkpoint['dis_optimizer'])
-            avg_gen_net = deepcopy(gen_net)
-            avg_gen_net.load_state_dict(checkpoint['avg_gen_state_dict'])
-            gen_avg_param = copy_params(avg_gen_net)
-            del avg_gen_net
-            """
             print(f'Upper bound changed from {args.bu} to {args.bu*2}.')
             args.bu = args.bu * 2
             if args.bu > 32:
