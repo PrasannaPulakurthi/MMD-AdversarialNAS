@@ -1,6 +1,3 @@
-# @Date    : 2019-10-22
-# @Author  : Chen Gao
-
 from __future__ import absolute_import, division, print_function
 
 import cfg_compress
@@ -30,6 +27,7 @@ torch.backends.cudnn.benchmark = True
 def main():
     args = cfg_compress.parse_args()
     validate_args(args)
+    
     torch.cuda.manual_seed(args.random_seed)
     np.random.seed(args.random_seed)
 
