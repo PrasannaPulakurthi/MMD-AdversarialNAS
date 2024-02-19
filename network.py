@@ -225,6 +225,8 @@ def validate(args, fixed_z, fid_stat, gen_net: nn.Module, writer_dict):
     # generate images
     sample_imgs = gen_net(fixed_z)
     img_grid = make_grid(sample_imgs, nrow=10, normalize=True, scale_each=True)
+    file_name = os.path.join(args.path_helper['sample_path'], 'img_grid.png')
+    imsave(file_name, img_grid.mul_(255).clamp_(0.0, 255.0).permute(1, 2, 0).to('cpu', torch.uint8).numpy())
 
     # get fid and inception score
     fid_buffer_dir = os.path.join(args.path_helper['sample_path'], 'fid_buffer')
