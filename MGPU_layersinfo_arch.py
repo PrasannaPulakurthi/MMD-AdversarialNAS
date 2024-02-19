@@ -21,6 +21,7 @@ torch.backends.cudnn.benchmark = True
 def main():
     args = cfg.parse_args()
     torch.cuda.manual_seed(args.random_seed)
+    np.random.seed(args.random_seed)
 
     args.exp_name = 'layersinfo-'+args.exp_name
 
