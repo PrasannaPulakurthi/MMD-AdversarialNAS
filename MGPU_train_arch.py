@@ -24,6 +24,7 @@ torch.backends.cudnn.benchmark = True
 def main():
     args = cfg.parse_args()
     torch.cuda.manual_seed(args.random_seed)
+    np.random.seed(args.random_seed)
 
     # set visible GPU ids
     if len(args.gpu_ids) > 0:
