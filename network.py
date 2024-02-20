@@ -71,9 +71,8 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
           writer_dict, lr_schedulers, architect_gen=None, architect_dis=None):
     writer = writer_dict['writer']
     gen_step = 0
-    bu = args.bu
-    bl = args.bl
-    mmd_rep_loss = MMD_loss(bu, bl)
+    mmd_rep_loss = MMD_loss(args.bu, args.bl)
+    
     # train mode
     gen_net = gen_net.train()
     dis_net = dis_net.train()
