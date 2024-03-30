@@ -1,4 +1,5 @@
 # ENHANCING GAN PERFORMANCE THROUGH NEURAL ARCHITECTURE SEARCH AND TENSOR DECOMPOSITION (MMD-AdversarialNAS)
+Code for our ICASSP 2024 paper "[Enhancing GAN Performance Through Neural Architecture Search and Tensor Decomposition]([https://arxiv.org/pdf/1912.02037.pdf](https://ieeexplore.ieee.org/document/10446488))".
 
 
 ## Qualitative Results
