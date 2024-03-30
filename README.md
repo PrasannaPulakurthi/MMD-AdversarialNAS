@@ -82,7 +82,7 @@ Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6
     ~~~
     
 ## Citation
-Please consider citing our paper in your publications if it helps your research. The following is a BibTeX reference. The BibTeX entry requires the url LaTeX package.
+Please consider citing our paper in your publications if it helps your research. The following is a BibTeX reference.
 
 ~~~
 @INPROCEEDINGS{10446488,
