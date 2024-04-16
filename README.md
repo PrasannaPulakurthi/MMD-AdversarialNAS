@@ -20,9 +20,11 @@ Code for our ICASSP 2024 paper "[Enhancing GAN Performance Through Neural Archit
     cd MMD-AdversarialNAS
     ~~~
    
-2. Install Pytorch, Tensorflow, CUDA, and requirements.
+2. Install requirements using Python 3.9. Latest Pytorch2 and Tensorflow2 with CUDA.
 
     ~~~
+    conda create -n mmd-nas python=3.9
+    conda activate mmd-nas
     pip install -r requirements.txt
     ~~~
     
