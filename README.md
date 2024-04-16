@@ -17,6 +17,7 @@ Code for our ICASSP 2024 paper "[Enhancing GAN Performance Through Neural Archit
 
     ~~~
     git clone https://github.com/PrasannaPulakurthi/MMD-AdversarialNAS.git
+    cd MMD-AdversarialNAS
     ~~~
    
 2. Install Pytorch, Tensorflow, CUDA, and requirements.
