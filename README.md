@@ -32,7 +32,7 @@ Code for our ICASSP 2024 paper "[Enhancing GAN Performance Through Neural Archit
 
     ~~~
     pip install tensorflow-gpu
-    [conda create -n mmd-nas python=3.9](https://pytorch.org/get-started/locally/)
+    [Install Pytorch2](https://pytorch.org/get-started/locally/)
     ~~~
 ### Preparing necessary files
 
