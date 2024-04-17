@@ -30,7 +30,7 @@ Code for our ICASSP 2024 paper "[Enhancing GAN Performance Through Neural Archit
     
 2. Install Pytorch and Tensorflow2 with CUDA.
 
-    [Install Pytorch](https://pytorch.org/get-started/locally)
+    [Install Pytorch](https://pytorch.org/get-started/previous-versions/)
    
     [Install Tensorflow](https://www.tensorflow.org/install/pip#windows-native)
    
