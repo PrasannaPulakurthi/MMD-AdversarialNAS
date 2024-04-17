@@ -31,7 +31,7 @@ Code for our ICASSP 2024 paper "[Enhancing GAN Performance Through Neural Archit
 2. Install Pytorch1 and Tensorflow2 with CUDA.
 
     ~~~
-    conda install pytorch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 pytorch-cuda=11.6 -c pytorch -c nvidia
+    pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu116
     ~~~
     To install other Pytroch versions compatible with your CUDA. [Install Pytorch](https://pytorch.org/get-started/previous-versions/)
    
