@@ -1,6 +1,23 @@
 # ENHANCING GAN PERFORMANCE THROUGH NEURAL ARCHITECTURE SEARCH AND TENSOR DECOMPOSITION (MMD-AdversarialNAS)
 Code for our ICASSP 2024 paper "[Enhancing GAN Performance Through Neural Architecture Search and Tensor Decomposition](https://ieeexplore.ieee.org/document/10446488)".
 
+by [Prasanna Reddy Pulakurthi](https://prasannapulakurthi.com/), [Mahsa Mozaffari](https://mahsamozaffari.com/), [Sohail A. Dianat](https://www.rit.edu/directory/sadeee-sohail-dianat), [Majid Rabbani](https://www.rit.edu/directory/mxreee-majid-rabbani), [Jamison Heard](https://www.rit.edu/directory/jrheee-jamison-heard), and [Raghuveer Rao](https://ieeexplore.ieee.org/author/37281258600).
+
+
+Please consider citing our paper in your publications if it helps your research. The following is a BibTeX reference.
+```bibtex
+@INPROCEEDINGS{10446488,
+  author={Pulakurthi, Prasanna Reddy and Mozaffari, Mahsa and Dianat, Sohail A. and Rabbani, Majid and Heard, Jamison and Rao, Raghuveer},
+  booktitle={ICASSP 2024 - 2024 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)}, 
+  title={Enhancing GAN Performance Through Neural Architecture Search and Tensor Decomposition}, 
+  year={2024},
+  volume={},
+  number={},
+  pages={7280-7284},
+  keywords={Training;Performance evaluation;Tensors;Image coding;Image synthesis;Image edge detection;Computer architecture;Neural Architecture Search;Maximum Mean Discrepancy;Generative Adversarial Networks},
+  doi={10.1109/ICASSP48485.2024.10446488}
+}
+```
 
 ## Qualitative Results
 ![All Visual Results](assets/All_Grid1.png)
@@ -93,22 +110,6 @@ Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6
     ~~~
     python MGPU_test_cpcompress.py --gpu_ids 0 --num_workers 8 --dataset cifar10 --bottom_width 4 --img_size 32 --arch arch_cifar10 --draw_arch False --checkpoint compress_train_cifar10_large --genotypes_exp arch_cifar10 --latent_dim 120 --gf_dim 256 --num_eval_imgs 50000 --eval_batch_size 100 --exp_name compress_test_cifar10_large  --byrank
     ~~~
-    
-## Citation
-Please consider citing our paper in your publications if it helps your research. The following is a BibTeX reference.
-```bibtex
-@INPROCEEDINGS{10446488,
-  author={Pulakurthi, Prasanna Reddy and Mozaffari, Mahsa and Dianat, Sohail A. and Rabbani, Majid and Heard, Jamison and Rao, Raghuveer},
-  booktitle={ICASSP 2024 - 2024 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)}, 
-  title={Enhancing GAN Performance Through Neural Architecture Search and Tensor Decomposition}, 
-  year={2024},
-  volume={},
-  number={},
-  pages={7280-7284},
-  keywords={Training;Performance evaluation;Tensors;Image coding;Image synthesis;Image edge detection;Computer architecture;Neural Architecture Search;Maximum Mean Discrepancy;Generative Adversarial Networks},
-  doi={10.1109/ICASSP48485.2024.10446488}
-}
-
 
 ## Acknowledgement
 Codebase from [AdversarialNAS](https://github.com/chengaopro/AdversarialNAS), [TransGAN](https://github.com/VITA-Group/TransGAN), and [Tensorly](https://github.com/tensorly/tensorly).
