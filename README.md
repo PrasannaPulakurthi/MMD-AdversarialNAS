@@ -96,8 +96,7 @@ Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6
     
 ## Citation
 Please consider citing our paper in your publications if it helps your research. The following is a BibTeX reference.
-
-~~~
+```bibtex
 @INPROCEEDINGS{10446488,
   author={Pulakurthi, Prasanna Reddy and Mozaffari, Mahsa and Dianat, Sohail A. and Rabbani, Majid and Heard, Jamison and Rao, Raghuveer},
   booktitle={ICASSP 2024 - 2024 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)}, 
@@ -109,7 +108,7 @@ Please consider citing our paper in your publications if it helps your research.
   keywords={Training;Performance evaluation;Tensors;Image coding;Image synthesis;Image edge detection;Computer architecture;Neural Architecture Search;Maximum Mean Discrepancy;Generative Adversarial Networks},
   doi={10.1109/ICASSP48485.2024.10446488}
 }
-~~~
+
 
 ## Acknowledgement
 Codebase from [AdversarialNAS](https://github.com/chengaopro/AdversarialNAS), [TransGAN](https://github.com/VITA-Group/TransGAN), and [Tensorly](https://github.com/tensorly/tensorly).
