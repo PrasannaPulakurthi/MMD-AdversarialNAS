@@ -52,7 +52,10 @@ Please consider citing our paper in your publications if it helps your research.
     To install other Pytroch versions compatible with your CUDA. [Install Pytorch](https://pytorch.org/get-started/previous-versions/)
    
     [Install Tensorflow](https://www.tensorflow.org/install/pip#windows-native)
-   
+
+
+
+## Instructions for Testing, Training, Searching, and Compressing the Model.   
 ### Preparing necessary files
 
 Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6Y-btreBtyVZ-kdGTIZgLTjsv7H4Pd?usp=sharing).
@@ -61,8 +64,6 @@ Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6
     
 2. Download the pre-calculated statistics to ./fid_stat for calculating the FID.
 
-
-## Instructions for Testing, Training, Searching, and Compressing the Model.
 ### Testing
 1. Download the trained generative models [Google Drive](https://drive.google.com/drive/folders/1xB6Y-btreBtyVZ-kdGTIZgLTjsv7H4Pd?usp=sharing) to ./exps/arch_train_cifar10_large/Model
 
