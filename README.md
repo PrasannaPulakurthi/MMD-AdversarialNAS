@@ -60,12 +60,12 @@ Please consider citing our paper in your publications if it helps your research.
 
 Files can be found in [Google Drive](https://drive.google.com/drive/folders/1tcMf8Bj6m3iqh4UO-zGJbI_UdvYGMFWT?usp=sharing).
 
-1. Download the pre-trained models to ./exps
+1. Download the pre-trained models to ./exps folder found [here](https://drive.google.com/drive/folders/1_-ymQyxItLkqSvoVuOZKSlnowCL4H6jz?usp=sharing).
     
-2. Download the pre-calculated statistics to ./fid_stat for calculating the FID.
+2. Download the pre-calculated statistics to ./fid_stat for calculating the FID from [here](https://drive.google.com/drive/folders/1g0g-yZWAVPZJxyua0qWO25-O4zjhY15A?usp=sharing).
 
 ### Testing
-1. Download the trained generative models [Google Drive](https://drive.google.com/drive/folders/1xB6Y-btreBtyVZ-kdGTIZgLTjsv7H4Pd?usp=sharing) to ./exps/arch_train_cifar10_large/Model
+1. Download the trained generative models from [here](https://drive.google.com/drive/folders/1_-ymQyxItLkqSvoVuOZKSlnowCL4H6jz?usp=sharing) to ./exps/arch_train_cifar10_large/Model
 
     ~~~
     mkdir -p exps/arch_train_cifar10_large/Model
