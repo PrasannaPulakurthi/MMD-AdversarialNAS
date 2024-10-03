@@ -58,7 +58,7 @@ Please consider citing our paper in your publications if it helps your research.
 ## Instructions for Testing, Training, Searching, and Compressing the Model.   
 ### Preparing necessary files
 
-Files can be found in [Google Drive](https://drive.google.com/drive/folders/1xB6Y-btreBtyVZ-kdGTIZgLTjsv7H4Pd?usp=sharing).
+Files can be found in [Google Drive](https://drive.google.com/drive/folders/1tcMf8Bj6m3iqh4UO-zGJbI_UdvYGMFWT?usp=sharing).
 
 1. Download the pre-trained models to ./exps
     
