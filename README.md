@@ -3,7 +3,7 @@ This repository contains code for our ICASSP 2024 paper "Enhancing GAN Performan
 
 by [Prasanna Reddy Pulakurthi](https://www.prasannapulakurthi.com/), [Mahsa Mozaffari](https://mahsamozaffari.com/), [Sohail A. Dianat](https://www.rit.edu/directory/sadeee-sohail-dianat), [Majid Rabbani](https://www.rit.edu/directory/mxreee-majid-rabbani), [Jamison Heard](https://www.rit.edu/directory/jrheee-jamison-heard), and [Raghuveer Rao](https://ieeexplore.ieee.org/author/37281258600).
 
-**2024/11 Update**: An extended version of this paper titled "Enhancing GANs with MMD Neural Architecture Search, PMish Activation Function, and Adaptive Rank Decomposition" has been accepted by IEEE Access 2024, [[PFD]](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=10732016) [[Paper]](https://ieeexplore.ieee.org/document/10732016) [[Website]](https://prasannapulakurthi.github.io/mmdpmishnas/). The latest version of the code can be found at: [Code](https://github.com/PrasannaPulakurthi/MMD-PMish-NAS). 
+**2024/11 Update**: An extended version of this paper titled "Enhancing GANs with MMD Neural Architecture Search, PMish Activation Function, and Adaptive Rank Decomposition" has been accepted by IEEE Access 2024, [[PFD]](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=10732016) [[Paper]](https://ieeexplore.ieee.org/document/10732016) [[Website]](https://prasannapulakurthi.github.io/mmdpmishnas/). The latest version of the code can be found at: [[Code]](https://github.com/PrasannaPulakurthi/MMD-PMish-NAS). 
 
 ## Qualitative Results
 ![All Visual Results](assets/All_Grid1.png)
