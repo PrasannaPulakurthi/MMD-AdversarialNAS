@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-# @Date    : 10/6/19
-# @Author  : Xinyu Gong (xy_gong@tamu.edu)
-# @Link    : None
-# @Version : 0.0
 
 from functools import partial
 import torch
