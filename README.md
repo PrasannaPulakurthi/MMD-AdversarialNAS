@@ -11,7 +11,7 @@ by [Prasanna Reddy Pulakurthi](https://www.prasannapulakurthi.com/), [Mahsa Moza
 
 ---
 
-> 🔔 **Update (November 2024):**  
+> **Update (November 2024):**  
 > An extended version of this work, titled **"Enhancing GANs with MMD Neural Architecture Search, PMish Activation Function, and Adaptive Rank Decomposition,"** has been accepted for publication in **IEEE Access 2024**. 🔗 [Paper](https://ieeexplore.ieee.org/document/10732016) | 🌐 [Project Website](https://prasannapulakurthi.github.io/mmdpmishnas/)  
 > The latest version of the code corresponding to the extended paper is available [here](https://github.com/PrasannaPulakurthi/MMD-PMish-NAS).
 
