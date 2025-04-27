@@ -12,10 +12,7 @@ by [Prasanna Reddy Pulakurthi](https://www.prasannapulakurthi.com/), [Mahsa Moza
 ---
 
 > 🔔 **Update (November 2024):**  
-> An extended version of this work, titled **"Enhancing GANs with MMD Neural Architecture Search, PMish Activation Function, and Adaptive Rank Decomposition,"** has been accepted for publication in **IEEE Access 2024**.  
-> 
-> 📄 [PDF](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=10732016) | 🔗 [Paper](https://ieeexplore.ieee.org/document/10732016) | 🌐 [Project Website](https://prasannapulakurthi.github.io/mmdpmishnas/)  
-> 
+> An extended version of this work, titled **"Enhancing GANs with MMD Neural Architecture Search, PMish Activation Function, and Adaptive Rank Decomposition,"** has been accepted for publication in **IEEE Access 2024**. 🔗 [Paper](https://ieeexplore.ieee.org/document/10732016) | 🌐 [Project Website](https://prasannapulakurthi.github.io/mmdpmishnas/)  
 > The latest version of the code corresponding to the extended paper is available [here](https://github.com/PrasannaPulakurthi/MMD-PMish-NAS).
 
 ## Qualitative Results
@@ -44,12 +41,12 @@ by [Prasanna Reddy Pulakurthi](https://www.prasannapulakurthi.com/), [Mahsa Moza
     pip install -r requirements.txt
     ~~~
     
-2. Install Pytorch1 and Tensorflow2 with CUDA.
+2. Install PyTorch1 and Tensorflow2 with CUDA.
 
     ~~~
     pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu116
     ~~~
-    To install other Pytroch versions compatible with your CUDA. [Install Pytorch](https://pytorch.org/get-started/previous-versions/)
+    To install other PyTorch versions compatible with your CUDA. [Install PyTorch](https://pytorch.org/get-started/previous-versions/)
    
     [Install Tensorflow](https://www.tensorflow.org/install/pip#windows-native)
 
